@@ -9,7 +9,9 @@
     "start": "./dist/app"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@prisma/client": "^7.8.0",
+    "@types/bun": "latest",
+    "prisma": "^7.8.0"
   },
   "peerDependencies": {
     "typescript": "^5"
