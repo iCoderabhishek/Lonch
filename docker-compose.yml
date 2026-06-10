@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vercelalike-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: vercelalike
+    ports:
+      - "5433:5432" # Maps host port 5433 to container port 5432
