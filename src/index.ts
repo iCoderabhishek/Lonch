@@ -3,6 +3,7 @@ import healthRoute from "./features/health/routes"
 import authRoute from "./features/auth/routes"
 import dotenv from "dotenv"
 import { errorHandler } from "./shared/libs/error"
+import cookieParser from "cookie-parser"
 
 dotenv.config()
 
@@ -17,7 +18,7 @@ app.use("/api/v1/auth", authRoute)
 
 // libs handler
 app.use(errorHandler)
-
+app.use(cookieParser())
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`)
 })
