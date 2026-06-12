@@ -1,14 +1,13 @@
 import type { Request, Response, NextFunction } from "express"
-import jwt from "jsonwebtoken"
 import axios from "axios"
 import { ApiError } from "../../../shared/libs/error"
 import { prisma } from "../../../shared/libs/prisma"
+import { issueTokens } from "../utils/token"
 
 // read GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET / GITHUB_CALLBACK_URL from process.env
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID!
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET!
 const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL!
-const JWT_SECRET = process.env.JWT_SECRET!
 
 // ── Step 1: redirect handler ──────────────────────────────
 export const githubRedirect = (req: Request, res: Response) => {
@@ -92,15 +91,9 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
             }
         });
 
-        // 6. sign YOUR OWN jwt
-        const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "7d" });
-        res.cookie("auth_token", token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "strict",
-            maxAge: 60 * 60 * 24 * 7, //7 d
-        })
-        res.json({ token: token });
+        // 6. issue YOUR OWN access + refresh tokens
+        const { accessToken } = await issueTokens(user.id, res)
+        res.json({ accessToken });
 
     } catch (error) {
         console.error("GitHub callback error:", error);

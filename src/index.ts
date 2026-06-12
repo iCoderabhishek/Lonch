@@ -9,6 +9,7 @@ dotenv.config()
 
 const app = express()
 app.use(express.json())
+app.use(cookieParser())
 
 const PORT = process.env.PORT || 8080
 
@@ -18,7 +19,7 @@ app.use("/api/v1/auth", authRoute)
 
 // libs handler
 app.use(errorHandler)
-app.use(cookieParser())
+
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`)
 })
