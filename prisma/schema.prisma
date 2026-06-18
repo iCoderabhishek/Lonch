@@ -18,7 +18,7 @@ model User {
   name         String?
   username     String?   @unique
   projects     Project[]
-  accessToken  String?
+  githubInstallationId String? @unique
   refreshToken String?
   githubId     String?   @unique
   avatar       String?
