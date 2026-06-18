@@ -3,11 +3,13 @@ import axios from "axios"
 import { ApiError } from "../../../shared/libs/error"
 import { prisma } from "../../../shared/libs/prisma"
 import { issueTokens } from "../utils/token"
+import { getInstallationToken } from "../../../shared/libs/github"
 
 // read GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET / GITHUB_CALLBACK_URL from process.env
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID!
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET!
 const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL!
+const GITHUB_APP_NAME = process.env.GITHUB_APP_NAME!
 
 // ── Step 1: redirect handler ──────────────────────────────
 export const githubRedirect = (req: Request, res: Response) => {
@@ -21,10 +23,16 @@ export const githubRedirect = (req: Request, res: Response) => {
     res.redirect(url)
 }
 
+// installation handler
+export const githubInstall = (req: Request, res: Response) => {
+    const url = `https://github.com/apps/${GITHUB_APP_NAME}/installations/new`
+    res.redirect(url)
+}
+
 // ── Step 2: callback handler (GitHub sends back ?code=) ───
 export const githubCallback = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { code } = req.query;
+        const { code, installation_id } = req.query;
         if (!code) {
             return next(ApiError.badRequest("Missing code"));
         }
@@ -82,12 +90,14 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
                 email: email,
                 avatar: avatar_url,
                 name: login,
+                githubInstallationId: installation_id ? String(installation_id) : undefined,
             },
             create: {
                 email: email,
                 avatar: avatar_url,
                 name: login,
                 githubId: String(githubId),
+                githubInstallationId: installation_id ? String(installation_id) : undefined,
             }
         });
 
