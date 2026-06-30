@@ -17,14 +17,19 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@aws-sdk/client-ecr": "^3.1076.0",
+    "@aws-sdk/client-ecs": "^3.1076.0",
+    "@aws-sdk/client-s3": "^3.1076.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "axios": "^1.17.0",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^5.79.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "ioredis": "^5.11.1",
     "pg": "^8.21.0",
     "zod": "^4.4.3"
   }
