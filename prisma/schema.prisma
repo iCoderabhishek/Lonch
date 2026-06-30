@@ -11,19 +11,32 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ProjectType {
+  STATIC
+  BACKEND
+}
+
+enum DeploymentStatus {
+  QUEUED
+  BUILDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  password     String?
-  name         String?
-  username     String?   @unique
-  projects     Project[]
-  githubInstallationId String? @unique
-  refreshToken String?
-  githubId     String?   @unique
-  avatar       String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  password             String?
+  name                 String?
+  username             String?   @unique
+  projects             Project[]
+  githubInstallationId String?   @unique
+  refreshToken         String?
+  githubId             String?   @unique
+  avatar               String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 }
 
 model Project {
@@ -35,6 +48,50 @@ model Project {
   createdAt         DateTime             @default(now())
   projectRunComands ProjectRunCommands[]
   updatedAt         DateTime             @updatedAt
+  repoUrl           String
+  repoId            Int?
+  type              ProjectType          @default(STATIC)
+  framework         String?
+  buildCommand      String?
+  installCommand    String?
+  startCommand      String?
+  rootDirectory     String?              @default("/")
+  outDirectory      String?
+  deployments       Deployment[]
+  envVars           EnvVar[]
+}
+
+model Deployment {
+  id            String           @id @default(uuid())
+  projectId     String
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status        DeploymentStatus @default(QUEUED)
+  imageUri      String?
+  staticS3Key   String?
+  url           String?
+  ecsServiceArm String
+  logs          DeploymentLog[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model DeploymentLog {
+  id           String     @id @default(uuid())
+  deploymentId String
+  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  line         String
+  stream       String     @default("stdout")
+  createdAt    DateTime   @default(now())
+}
+
+model EnvVar {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }
 
 model ProjectRunCommands {
