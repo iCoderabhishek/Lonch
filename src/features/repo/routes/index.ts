@@ -1,9 +1,9 @@
 import express from "express";
 import { getRepos } from "../../repo/services/repo";
-import { middleware } from "../../auth/middleware";
+import { authMiddleware } from "../../auth/middleware";
 
 const router = express.Router();
 
-router.get("/repos", middleware, getRepos)
+router.get("/repos", authMiddleware, getRepos)
 
 export default router;
