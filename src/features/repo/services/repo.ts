@@ -7,7 +7,7 @@ import axios from "axios"
 
 export const getRepos = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id;
+        const userId = req.user?.userId;
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
