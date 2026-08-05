@@ -2,18 +2,11 @@ import type { Request, Response, NextFunction } from "express"
 import axios from "axios"
 import { ApiError } from "../../../shared/libs/error"
 import { prisma } from "../../../shared/libs/prisma"
-import { issueTokens } from "../utils/token"
-import { getInstallationToken } from "../../../shared/libs/github"
-
-// read GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET / GITHUB_CALLBACK_URL from process.env
-const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID!
-const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET!
-const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL!
-const GITHUB_APP_NAME = process.env.GITHUB_APP_NAME!
+import { setAuthSession } from "../utils/token"
+import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, GITHUB_APP_NAME } from "../../../shared/libs/env-lib";
 
 // ── Step 1: redirect handler ──────────────────────────────
 export const githubRedirect = (req: Request, res: Response) => {
-    // build https://github.com/login/oauth/authorize with query params:
     const url = "https://github.com/login/oauth/authorize?" +
         new URLSearchParams({
             client_id: GITHUB_CLIENT_ID,
@@ -48,7 +41,7 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
             }
         });
 
-        const { access_token } = tokenResponse.data;
+        const { access_token, refresh_token } = tokenResponse.data;
 
         if (!access_token) {
             return next(ApiError.badRequest("Missing access token"));
@@ -101,9 +94,9 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
             }
         });
 
-        // 6. issue YOUR OWN access + refresh tokens
-        const { accessToken } = await issueTokens(user.id, res)
-        res.json({ accessToken });
+        // 6. store tokens in session
+        setAuthSession(req, access_token, user.id, refresh_token);
+        res.json({ message: "Successfully authenticated" });
 
     } catch (error) {
         console.error("GitHub callback error:", error);
