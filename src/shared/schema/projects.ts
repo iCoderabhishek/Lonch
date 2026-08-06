@@ -11,8 +11,15 @@ export const projectSchma = z.object({
     startCommand: z.string().optional(),
     outputDirectory: z.string().optional(),
     rootDirectory: z.string().optional(),
+    slug: z.string().optional()
 })
 
 export const createProjectSchema = projectSchma.omit({
     repoId: true,
+    slug: true
+})
+
+export const updateProjectSchema = projectSchma.omit({
+    repoId: true,
+    slug: true
 })
