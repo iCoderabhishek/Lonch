@@ -22,6 +22,7 @@ enum DeploymentStatus {
   SUCCESS
   FAILED
   CANCELLED
+  PUSHING
 }
 
 model User {
@@ -52,6 +53,7 @@ model Project {
   repoId            Int?
   type              ProjectType          @default(STATIC)
   framework         String?
+  baseImage         String?              @default("node:20-alpine")
   buildCommand      String?
   installCommand    String?
   startCommand      String?
@@ -60,6 +62,8 @@ model Project {
   deployments       Deployment[]
   envVars           EnvVar[]
   disabled          Boolean              @default(false)
+  maxMemory         Int?                 @default(1073741824) // 1GB in bytes
+  maxCpu            Int?                 @default(1)
 }
 
 model Deployment {

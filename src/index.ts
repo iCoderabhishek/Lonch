@@ -7,7 +7,6 @@ import dotenv from "dotenv"
 import { errorHandler } from "./shared/libs/error"
 import cookieSession from "cookie-session"
 import { COOKIE_DOMAIN } from "./shared/libs/env-lib"
-import { authMiddleware } from "./features/auth/middleware"
 dotenv.config()
 
 const app = express()
