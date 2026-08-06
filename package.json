@@ -17,6 +17,7 @@
   "devDependencies": {
     "@prisma/client": "^7.8.0",
     "@types/bun": "latest",
+    "@types/mime-types": "^3.0.1",
     "prisma": "^7.8.0"
   },
   "peerDependencies": {
@@ -43,6 +44,7 @@
     "express": "^5.2.1",
     "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
+    "mime-types": "^3.0.2",
     "pg": "^8.21.0",
     "zod": "^4.4.3"
   }

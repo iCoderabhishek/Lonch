@@ -9,8 +9,9 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
-import { uploadArtifactToS3 } from "../libs/s3";
+import { uploadFolderToS3 } from "../libs/s3";
 import docker from "../docker"
+import { AWS_S3_REGION, AWS_S3_BUCKET_NAME } from "../libs/env-lib";
 
 
 // creating this helper to make sure only valid transitions are allowed
@@ -34,13 +35,13 @@ export const assertValidTransition = (from: DeploymentStatus, to: DeploymentStat
     }
 }
 
-export const updateDeploymentStatus = async (id: string, newStatus: DeploymentStatus) => {
+export const updateDeploymentStatus = async (id: string, newStatus: DeploymentStatus, extraData: any = {}) => {
     const deployment = await prisma.deployment.findUnique({ where: { id } });
     if (!deployment) throw new ApiError(404, "Deployment not found");
     assertValidTransition(deployment.status, newStatus);
     return await prisma.deployment.update({
         where: { id },
-        data: { status: newStatus }
+        data: { status: newStatus, ...extraData }
     });
 }
 
@@ -133,16 +134,22 @@ export const deployWorker = new Worker(
             }
 
             const outputPath = project.outDirectory || "dist";
-            // 6. extract the built assets (eg: /app/dist)
-            const archiveStream = await container.getArchive({ path: `/app/${outputPath}` });
+            const localDistPath = path.join(tempDir, outputPath);
 
             // 7. upload to S3
             await updateDeploymentStatus(deploymentId, "PUSHING");
-            await uploadArtifactToS3(deploymentId, archiveStream);
+            const s3Prefix = `projects/${projectId}/${deploymentId}`;
+            await uploadFolderToS3(localDistPath, s3Prefix);
 
             // 8. Cleanup and mark SUCCESS
             await container.remove();
-            await updateDeploymentStatus(deploymentId, "SUCCESS");
+
+            const publicUrl = `https://${AWS_S3_BUCKET_NAME}.s3.${AWS_S3_REGION}.amazonaws.com/${s3Prefix}/index.html`;
+
+            await updateDeploymentStatus(deploymentId, "SUCCESS", {
+                url: publicUrl,
+                staticS3Key: s3Prefix
+            });
 
         } catch (error: any) {
             // Handle failure
