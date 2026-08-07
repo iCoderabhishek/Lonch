@@ -7,7 +7,7 @@ RUN apk update && \
 WORKDIR /app
 
 # Copy package and lock files first to leverage Docker cache
-COPY package.json bun.lockb ./
+COPY package.json bun.lock* ./
 
 # Install dependencies
 RUN bun install
