@@ -5,7 +5,7 @@ import type { Request, Response } from "express";
 
 export async function createProject(req: Request, res: Response) {
 
-    const { name, repoUrl, type, framework, buildCommand, installCommand, startCommand, outputDirectory, rootDirectory } = createProjectSchema.parse(req.body);
+    const { name, repoUrl, type, framework, buildCommand, installCommand, startCommand, outputDirectory, rootDirectory, baseImage } = createProjectSchema.parse(req.body);
 
     if (!name || !repoUrl || !type) {
         return res.status(400).json({ message: "Name, repoUrl and type are required" });
@@ -36,6 +36,7 @@ export async function createProject(req: Request, res: Response) {
             startCommand,
             outDirectory: outputDirectory,
             rootDirectory,
+            baseImage,
             slug,
             ownerId: req.user.userId
         }

@@ -11,6 +11,7 @@ export const projectSchma = z.object({
     startCommand: z.string().optional(),
     outputDirectory: z.string().optional(),
     rootDirectory: z.string().optional(),
+    baseImage: z.string().optional(),
     slug: z.string().optional()
 })
 
