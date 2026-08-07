@@ -41,7 +41,7 @@ export const getRepos = async (req: Request, res: Response, next: NextFunction) 
             defaultBranch: r.default_branch,
             updatedAt: r.updated_at,
             owner: { login: r.owner?.login, avatar: r.owner?.avatar_url },
-        }));
+        })).sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
         res.json({ repos });
     } catch (error) {

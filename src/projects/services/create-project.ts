@@ -13,10 +13,10 @@ export async function createProject(req: Request, res: Response) {
 
     const randomChars = Math.random().toString(36).substring(2, 8);
     const slug = `${name.toLowerCase().trim().replace(/\s+/g, '-')}-${randomChars}`;
-    
+
     const existingProject = await prisma.project.findFirst({
         where: {
-            ownerId: req.user.id,
+            ownerId: req.user.userId,
             slug
         }
     });
@@ -37,7 +37,7 @@ export async function createProject(req: Request, res: Response) {
             outDirectory: outputDirectory,
             rootDirectory,
             slug,
-            ownerId: req.user.id
+            ownerId: req.user.userId
         }
     });
 

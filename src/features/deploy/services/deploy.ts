@@ -5,7 +5,7 @@ import { triggerDeploy } from "../../../shared/worker/buildJob"
 
 export const deploy = async (req: Request, res: Response, next: NextFunction) => {
 
-    const userId = req.userId
+    const userId = req.user?.userId
     const { repoUrl, projectId } = req.body
     try {
 
