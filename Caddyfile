@@ -1,0 +1,4 @@
+# Replace 'api.yourdomain.com' with your actual domain
+api-lonch.0bhishek.com {
+    reverse_proxy app:8080
+}

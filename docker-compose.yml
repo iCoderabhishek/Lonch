@@ -1,5 +1,31 @@
 version: '3.8'
 services:
+  app:
+    build: .
+    container_name: lonch-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: lonch-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
   postgres:
     image: postgres:16-alpine
     container_name: lonch-postgres
@@ -35,3 +61,5 @@ services:
 volumes:
   lonch_postgres:
   lonch_redis:
+  caddy_data:
+  caddy_config:
