@@ -1,0 +1,24 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches: [ "dev" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USERNAME }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.LIGHTSAIL_USERNAME }}/Lonch
+            git checkout dev
+            git pull origin dev
+            
+            # Rebuild and restart the containers using docker-compose
+            bun run docker:down
+            bun run docker
