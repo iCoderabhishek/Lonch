@@ -7,6 +7,8 @@ import dotenv from "dotenv"
 import { errorHandler } from "./shared/libs/error"
 import cookieSession from "cookie-session"
 import { COOKIE_DOMAIN } from "./shared/libs/env-lib"
+import projectRoute from "./projects/routes";
+
 dotenv.config()
 
 const app = express()
@@ -30,6 +32,8 @@ app.use("/health", healthRoute)
 app.use("/api/v1/auth", authRoute)
 app.use("/api/v1/github", repoRoute)
 app.use("/api/v1/deploy", deployRoute)
+app.use("/api/v1/projects", projectRoute); // Add this under your other routes
+
 // libs handler
 app.use(errorHandler)
 

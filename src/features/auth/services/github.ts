@@ -74,6 +74,27 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
             }
         }
 
+        let finalInstallationId = installation_id ? String(installation_id) : undefined;
+
+        // If installation_id wasn't in the query, try to fetch it from the user's installations
+        if (!finalInstallationId) {
+            try {
+                const installationsResponse = await axios.get("https://api.github.com/user/installations", {
+                    headers: {
+                        Authorization: `Bearer ${access_token}`,
+                        Accept: "application/vnd.github+json",
+                        "User-Agent": "lonch-app"
+                    }
+                });
+                if (installationsResponse.data.installations && installationsResponse.data.installations.length > 0) {
+                    // Grab the first installation ID for this app
+                    finalInstallationId = String(installationsResponse.data.installations[0].id);
+                }
+            } catch (err) {
+                console.warn("Could not fetch user installations", err);
+            }
+        }
+
         // 5. upsert the user
         const user = await prisma.user.upsert({
             where: {
@@ -83,14 +104,14 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
                 email: email,
                 avatar: avatar_url,
                 name: login,
-                githubInstallationId: installation_id ? String(installation_id) : undefined,
+                githubInstallationId: finalInstallationId,
             },
             create: {
                 email: email,
                 avatar: avatar_url,
                 name: login,
                 githubId: String(githubId),
-                githubInstallationId: installation_id ? String(installation_id) : undefined,
+                githubInstallationId: finalInstallationId,
             }
         });
 
