@@ -15,10 +15,8 @@ jobs:
           username: ${{ secrets.LIGHTSAIL_USERNAME }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           script: |
-            cd /home/${{ secrets.LIGHTSAIL_USERNAME }}/Lonch
+            cd ~/Lonch
             git checkout dev
             git pull origin dev
             
-            # Rebuild and restart the containers using docker-compose
-            bun run docker:down
             bun run docker
