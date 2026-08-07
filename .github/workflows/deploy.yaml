@@ -15,7 +15,6 @@ jobs:
           username: ${{ secrets.LIGHTSAIL_USERNAME }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           script: |
-            # Clone the repo if the directory doesn't exist
             if [ ! -d "$HOME/Lonch" ]; then
               git clone https://github.com/iCoderabhishek/Lonch.git $HOME/Lonch
             fi
