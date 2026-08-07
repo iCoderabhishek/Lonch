@@ -19,7 +19,7 @@ export const assertValidTransition = (from: DeploymentStatus, to: DeploymentStat
     try {
         const allowed: Record<DeploymentStatus, DeploymentStatus[]> = {
             [DeploymentStatus.QUEUED]: [DeploymentStatus.BUILDING, DeploymentStatus.CANCELLED],
-            [DeploymentStatus.BUILDING]: [DeploymentStatus.PUSHING, DeploymentStatus.FAILED, DeploymentStatus.CANCELLED],
+            [DeploymentStatus.BUILDING]: [DeploymentStatus.BUILDING, DeploymentStatus.PUSHING, DeploymentStatus.FAILED, DeploymentStatus.CANCELLED],
             [DeploymentStatus.SUCCESS]: [],
             [DeploymentStatus.FAILED]: [],
             [DeploymentStatus.CANCELLED]: [],
@@ -71,11 +71,13 @@ const execFileAsync = promisify(execFile);
 export const deployWorker = new Worker(
     "deploy-job",
     async (job) => {
+        console.log(`[Worker] Started processing job for deployment: ${job.data.deploymentId}`);
         const { deploymentId, projectId } = job.data;
         let tempDir = "";
         let container: Docker.Container | undefined;
 
         try {
+            console.log(`[Worker] Marking as BUILDING...`);
             // 1. Mark as BUILDING
             await updateDeploymentStatus(deploymentId, "BUILDING");
 
@@ -92,10 +94,33 @@ export const deployWorker = new Worker(
             }
 
             tempDir = path.resolve("/tmp/builds", deploymentId);
+            console.log(`[Worker] Cloning repository: ${project.repoUrl} into ${tempDir}...`);
             await execFileAsync('git', ['clone', project.repoUrl, tempDir]);
+            console.log(`[Worker] Clone completed!`);
 
             // 3. Create Docker Container
             const buildImage = project.baseImage || "node:22-alpine";
+            
+            console.log(`[Worker] Pulling Docker image: ${buildImage}...`);
+            await new Promise((resolve, reject) => {
+                docker.pull(buildImage, (err: any, stream: any) => {
+                    if (err) return reject(err);
+                    docker.modem.followProgress(stream, 
+                        (err: any, output: any) => {
+                            if (err) return reject(err);
+                            resolve(output);
+                        },
+                        (event: any) => {
+                            if (event.status && event.progress) {
+                                console.log(`[Worker] Pulling: ${event.status} - ${event.progress}`);
+                            }
+                        }
+                    );
+                });
+            });
+            console.log(`[Worker] Image pulled successfully.`);
+
+            const workingDir = project.rootDirectory ? path.posix.join("/app", project.rootDirectory) : "/app";
 
             container = await docker.createContainer({
                 Image: buildImage,
@@ -106,20 +131,24 @@ export const deployWorker = new Worker(
                     Memory: project.maxMemory || 1024 * 1024 * 1024,
                     NetworkMode: "bridge",
                 },
-                WorkingDir: project.rootDirectory || "/app",
+                WorkingDir: workingDir,
             });
+            console.log(`[Worker] Docker container created. Starting container...`);
 
             // 4. start the container and stream logs
             await container.start();
+            console.log(`[Worker] Container started. Waiting for logs...`);
 
             const allLogs: { deploymentId: string, line: string, stream: string }[] = [];
 
             const stream = await container.logs({ follow: true, stdout: true, stderr: true });
             stream.on('data', (chunk) => {
+                const logLine = chunk.toString('utf8');
+                console.log(`[Worker] ${logLine}`);
                 // we should stream the log live via websocket
                 allLogs.push({
                     deploymentId,
-                    line: chunk.toString('utf8'),
+                    line: logLine,
                     stream: "stdout"
                 });
             });
@@ -136,10 +165,12 @@ export const deployWorker = new Worker(
             const outputPath = project.outDirectory || "dist";
             const localDistPath = path.join(tempDir, outputPath);
 
+            console.log(`[Worker] Build completed! Uploading ${localDistPath} to S3...`);
             // 7. upload to S3
             await updateDeploymentStatus(deploymentId, "PUSHING");
             const s3Prefix = `projects/${projectId}/${deploymentId}`;
             await uploadFolderToS3(localDistPath, s3Prefix);
+            console.log(`[Worker] Upload to S3 completed!`);
 
             // 8. Cleanup and mark SUCCESS
             await container.remove();
@@ -153,7 +184,7 @@ export const deployWorker = new Worker(
 
         } catch (error: any) {
             // Handle failure
-            console.error(error);
+            console.error(`[Worker Error]:`, error);
             await updateDeploymentStatus(deploymentId, "FAILED").catch(console.error);
             throw error;
         } finally {
@@ -168,3 +199,7 @@ export const deployWorker = new Worker(
     },
     { connection: { url: REDIS_URL, } }
 );
+
+deployWorker.on("error", (err) => {
+    console.error("[Worker Connection Error]:", err);
+});

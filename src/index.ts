@@ -1,15 +1,13 @@
+import "dotenv/config"
 import express from "express"
 import healthRoute from "./features/health/routes"
 import authRoute from "./features/auth/routes"
 import repoRoute from "./features/repo/routes"
 import deployRoute from "./features/deploy/routes"
-import dotenv from "dotenv"
 import { errorHandler } from "./shared/libs/error"
 import cookieSession from "cookie-session"
 import { COOKIE_DOMAIN } from "./shared/libs/env-lib"
 import projectRoute from "./projects/routes";
-
-dotenv.config()
 
 const app = express()
 app.use(express.json())

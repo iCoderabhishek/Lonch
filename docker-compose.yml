@@ -23,7 +23,7 @@ services:
     container_name: lonch-redis
     restart: unless-stopped
     ports:
-      - "6380:6380"
+      - "6380:6379"
     volumes:
       - lonch_redis:/data
     healthcheck:
