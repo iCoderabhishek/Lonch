@@ -1,5 +1,4 @@
-// Example: src/shared/libs/s3.ts
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { PassThrough } from "stream";
 import fs from "fs/promises";
@@ -7,7 +6,7 @@ import { createReadStream } from "fs";
 import path from "path";
 import mime from "mime-types";
 import { AWS_S3_REGION, AWS_S3_ACCESS_KEY_ID, AWS_S3_SECRET_ACCESS_KEY, AWS_S3_BUCKET_NAME } from "../env-lib";
-const s3 = new S3Client({
+export const s3 = new S3Client({
     region: AWS_S3_REGION,
     credentials: {
         accessKeyId: AWS_S3_ACCESS_KEY_ID!,

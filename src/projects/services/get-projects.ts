@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../../shared/libs/prisma";
 import { ApiError } from "../../shared/libs/error";
+import { DEPLOYMENT_DOMAIN } from "../../shared/libs/env-lib";
 
 export async function getProjects(req: Request, res: Response, next: NextFunction) {
     try {
@@ -12,10 +13,27 @@ export async function getProjects(req: Request, res: Response, next: NextFunctio
         const projects = await prisma.project.findMany({
             where: {
                 ownerId: userId
+            },
+            include: {
+                deployments: {
+                    where: { status: "SUCCESS" },
+                    orderBy: { createdAt: "desc" },
+                    take: 1
+                }
             }
         });
 
-        res.json({ projects });
+        // add the dynamically generated live URL if there is a successful deployment.....
+        const projectsWithUrls = projects.map(p => {
+            const hasDeployment = p.deployments && p.deployments.length > 0;
+            const protocol = DEPLOYMENT_DOMAIN.includes("localhost") ? "http" : "https";
+            return {
+                ...p,
+                liveUrl: hasDeployment ? `${protocol}://${p.slug}.${DEPLOYMENT_DOMAIN}` : null,
+            };
+        });
+
+        res.json({ projects: projectsWithUrls });
     } catch (error) {
         next(error);
     }

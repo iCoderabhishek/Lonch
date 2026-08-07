@@ -40,7 +40,6 @@ export const deploy = async (req: Request, res: Response, next: NextFunction) =>
             }
         })
 
-        // Removed strict check to allow recovering from stuck states
 
         const newDeployment = await triggerDeploy(projectId);
 

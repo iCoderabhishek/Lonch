@@ -8,8 +8,12 @@ import { errorHandler } from "./shared/libs/error"
 import cookieSession from "cookie-session"
 import { COOKIE_DOMAIN } from "./shared/libs/env-lib"
 import projectRoute from "./projects/routes";
+import { proxyInterceptor } from "./features/proxy/middleware";
 
 const app = express()
+
+app.use(proxyInterceptor);
+
 app.use(express.json())
 
 app.use(cookieSession({
@@ -30,7 +34,7 @@ app.use("/health", healthRoute)
 app.use("/api/v1/auth", authRoute)
 app.use("/api/v1/github", repoRoute)
 app.use("/api/v1/deploy", deployRoute)
-app.use("/api/v1/projects", projectRoute); // Add this under your other routes
+app.use("/api/v1/projects", projectRoute);
 
 // libs handler
 app.use(errorHandler)
