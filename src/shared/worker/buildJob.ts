@@ -102,23 +102,8 @@ export const deployWorker = new Worker(
             const buildImage = project.baseImage || "node:22-alpine";
             
             console.log(`[Worker] Pulling Docker image: ${buildImage}...`);
-            await new Promise((resolve, reject) => {
-                docker.pull(buildImage, (err: any, stream: any) => {
-                    if (err) return reject(err);
-                    docker.modem.followProgress(stream, 
-                        (err: any, output: any) => {
-                            if (err) return reject(err);
-                            resolve(output);
-                        },
-                        (event: any) => {
-                            if (event.status && event.progress) {
-                                console.log(`[Worker] Pulling: ${event.status} - ${event.progress}`);
-                            }
-                        }
-                    );
-                });
-            });
-            console.log(`[Worker] Image pulled successfully.`);
+            const { stdout, stderr } = await execFileAsync('docker', ['pull', buildImage]);
+            console.log(`[Worker] Image pulled successfully. Details: ${stdout || stderr}`);
 
             const workingDir = project.rootDirectory ? path.posix.join("/app", project.rootDirectory) : "/app";
 
@@ -173,7 +158,7 @@ export const deployWorker = new Worker(
             console.log(`[Worker] Upload to S3 completed!`);
 
             // 8. Cleanup and mark SUCCESS
-            await container.remove();
+            // (Cleanup of the container is handled safely in the finally block)
 
             const publicUrl = `https://${AWS_S3_BUCKET_NAME}.s3.${AWS_S3_REGION}.amazonaws.com/${s3Prefix}/index.html`;
 

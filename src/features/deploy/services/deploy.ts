@@ -40,9 +40,7 @@ export const deploy = async (req: Request, res: Response, next: NextFunction) =>
             }
         })
 
-        if (latestDeployment && latestDeployment.status === "BUILDING") {
-            return res.status(400).json({ message: "A deployment is already in progress" })
-        }
+        // Removed strict check to allow recovering from stuck states
 
         const newDeployment = await triggerDeploy(projectId);
 
