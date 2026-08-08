@@ -9,7 +9,7 @@ import cookieSession from "cookie-session"
 import { COOKIE_DOMAIN } from "./shared/libs/env-lib"
 import projectRoute from "./projects/routes";
 import { proxyInterceptor } from "./features/proxy/middleware";
-import logRoute from "./features/logs/routes";
+import logRoute from "./features/deploy-logs/routes";
 const app = express()
 
 app.use(proxyInterceptor);
