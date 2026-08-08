@@ -14,7 +14,12 @@ import { ApiError } from "../libs/error";
 const execFileAsync = promisify(execFile);
 
 export const getProjectForDeploy = async (projectId: string, expectedType: string) => {
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        include: {
+            envVars: true
+        }
+    });
     if (!project) throw new ApiError(404, "Project not found");
     if (project.type !== expectedType) {
         throw new ApiError(400, `Expected ${expectedType} project, but got ${project.type}`);
