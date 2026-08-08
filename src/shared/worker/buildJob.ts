@@ -12,6 +12,7 @@ import path from "path";
 import { uploadFolderToS3 } from "../libs/s3";
 import docker from "../docker"
 import { AWS_S3_REGION, AWS_S3_BUCKET_NAME } from "../libs/env-lib";
+import { redisPublisher } from "../libs/redis"
 
 
 // creating this helper to make sure only valid transitions are allowed
@@ -100,7 +101,7 @@ export const deployWorker = new Worker(
 
             // 3. Create Docker Container
             const buildImage = project.baseImage || "node:22-alpine";
-            
+
             console.log(`[Worker] Pulling Docker image: ${buildImage}...`);
             const { stdout, stderr } = await execFileAsync('docker', ['pull', buildImage]);
             console.log(`[Worker] Image pulled successfully. Details: ${stdout || stderr}`);
@@ -130,7 +131,10 @@ export const deployWorker = new Worker(
             stream.on('data', (chunk) => {
                 const logLine = chunk.toString('utf8');
                 console.log(`[Worker] ${logLine}`);
-                // we should stream the log live via websocket
+                // streaming the log live with pubsub and sse event
+                redisPublisher.publish(`deploy-log:${deploymentId}`, logLine)
+
+                // saving the logs for db later
                 allLogs.push({
                     deploymentId,
                     line: logLine,
