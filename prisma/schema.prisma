@@ -59,6 +59,7 @@ model Project {
   startCommand      String?
   rootDirectory     String?              @default("/")
   outDirectory      String?
+  ecsServiceArn     String?
   deployments       Deployment[]
   envVars           EnvVar[]
   disabled          Boolean              @default(false)
