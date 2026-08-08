@@ -47,5 +47,7 @@
     "mime-types": "^3.0.2",
     "pg": "^8.21.0",
     "zod": "^4.4.3"
-  }
+  },
+  "author": "Abhishek Jha",
+  "description": "A cloud deployment platform that provide static and backend deployment services."
 }
