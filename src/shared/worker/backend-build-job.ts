@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import { AWS_ECR_REPOSITORY_URI, AWS_S3_REGION, REDIS_URL } from "../libs/env-lib";
-import { cloneRepository, createAndStartContainer, getProjectForDeploy } from "./static-worker-utils";
+import { cloneRepository, createAndStartContainer, getProjectForDeploy, runCommandWithStreaming } from "./static-worker-utils";
 import Docker from "dockerode"
 import { updateDeploymentStatus } from "../services/deploy-service";
 import { promisify } from "util";
@@ -47,14 +47,13 @@ export const backendDeployWorker = new Worker(
 
             console.log(`[Worker] Building Docker image...`);
 
-
-            await execFileAsync('docker', [
+            await runCommandWithStreaming('docker', [
                 "build",
                 "-t",
                 imageTag,
                 "--no-cache",
                 tempDir,
-            ]);
+            ], deploymentId, tempDir);
 
             console.log(`[Worker] Image built successfully: ${imageTag}`);
 
@@ -69,7 +68,7 @@ export const backendDeployWorker = new Worker(
 
             await updateDeploymentStatus(deploymentId, "PUSHING");
 
-            await execFileAsync('docker', ['push', imageTag])
+            await runCommandWithStreaming('docker', ['push', imageTag], deploymentId, tempDir);
 
             console.log(`[Worker] Image pushed successfully`);
 

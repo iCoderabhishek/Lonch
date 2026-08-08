@@ -1,5 +1,5 @@
 import type { Project } from "@prisma/client";
-import { execFile } from "child_process";
+import { execFile, spawn } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import docker from "../docker";
@@ -112,4 +112,26 @@ export const cleanupResources = async (tempDir: string, container?: Docker.Conta
     if (container) {
         await container.remove().catch(console.error);
     }
+};
+
+export const runCommandWithStreaming = (command: string, args: string[], deploymentId: string, cwd?: string) => {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, { cwd });
+        const allLogs: any[] = [];
+
+        const log = (data: any, stream: string) => data.toString().split('\n').filter(Boolean).forEach((line: string) => {
+            console.log(`[Worker] ${line}`);
+            redisPublisher.publish(`deploy-log:${deploymentId}`, line);
+            allLogs.push({ deploymentId, line, stream });
+        });
+
+        child.stdout.on('data', d => log(d, 'stdout'));
+        child.stderr.on('data', d => log(d, 'stderr'));
+        
+        child.on('close', async (code) => {
+            if (allLogs.length) await prisma.deploymentLog.createMany({ data: allLogs }).catch(console.error);
+            code === 0 ? resolve(true) : reject(new Error(`Command failed with code ${code}`));
+        });
+        child.on('error', reject);
+    });
 };
