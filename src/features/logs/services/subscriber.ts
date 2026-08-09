@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { redis } from "../../../shared/libs/redis";
 
-export const getLogs = async (req: Request, res: Response, next: NextFunction) => {
+export const getBuildLogs = async (req: Request, res: Response, next: NextFunction) => {
     const deploymentId = req.params.deploymentId;
 
     // sse headers 

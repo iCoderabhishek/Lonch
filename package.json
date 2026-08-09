@@ -12,7 +12,8 @@
     "studio": "bunx --bun prisma studio",
     "docker": "bunx --bun docker-compose up --build -d",
     "docker:down": "bunx --bun docker-compose down",
-    "generate-string": "bun ./src/shared/scripts/long-string-generation.ts"
+    "generate-string": "bun ./src/shared/scripts/long-string-generation.ts",
+    "typecheck": "bunx --bun tsc --noEmit"
   },
   "devDependencies": {
     "@prisma/client": "^7.8.0",
