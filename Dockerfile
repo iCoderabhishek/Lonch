@@ -1,8 +1,9 @@
-FROM oven/bun:alpine
+FROM oven/bun:1
 
 # Install Docker CLI and Git because the worker needs to execute commands
-RUN apk update && \
-    apk add --no-cache docker-cli git
+RUN apt-get update && \
+    apt-get install -y docker.io git && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
