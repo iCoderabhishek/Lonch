@@ -115,7 +115,7 @@ export const backendDeployWorker = new Worker(
                 value: envVar.value
             }));
 
-            // 4. Modify the container definition's environment variables
+            // 4. Modify the container definition's environment variables and ports
             // Assuming the primary application container is the first one
             const primaryContainer = taskDef.containerDefinitions[0];
             if (!primaryContainer) {
@@ -125,6 +125,16 @@ export const backendDeployWorker = new Worker(
             primaryContainer.environment = awsEnvVars;
             // Ensure the image points to the newly built image tag
             primaryContainer.image = imageTag;
+
+            // Map the exposed port
+            const appPort = project.port || 3000;
+            primaryContainer.portMappings = [
+                {
+                    containerPort: appPort,
+                    hostPort: appPort,
+                    protocol: "tcp"
+                }
+            ];
 
             // 5. Create a new revision of the Task Definition
             const registerResponse = await ecsClient.send(new RegisterTaskDefinitionCommand({

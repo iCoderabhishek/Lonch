@@ -65,6 +65,7 @@ model Project {
   disabled          Boolean              @default(false)
   maxMemory         Int?                 @default(1073741824) // 1GB in bytes
   maxCpu            Int?                 @default(1)
+  port              Int?                 @default(3000)
 }
 
 model Deployment {
