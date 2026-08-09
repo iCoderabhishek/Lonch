@@ -30,19 +30,21 @@ export const backendDeployWorker = new Worker(
             if (!project.ecsServiceArn) throw new Error("ECS Service ARN not found for project");
 
 
+            tempDir = await cloneRepository(project.repoUrl, deploymentId);
+            
             const dockerfilePath = path.join(tempDir, "Dockerfile");
             const dockerfileExists = await fs.access(dockerfilePath).then(() => true).catch(() => false);
             if (!dockerfileExists) {
-                await fs.writeFile(dockerfilePath, `
-                    FROM ${project.baseImage}
-                    WORKDIR /app
-                    COPY . .
-                    RUN ${project.buildCommand}
-                    CMD ["sh", "-c", "${project.startCommand || 'npm start'}"]
-                `);
+                let dockerfileContent = `FROM ${project.baseImage || 'node:20-alpine'}\nWORKDIR /app\nCOPY . .\n`;
+                if (project.installCommand) {
+                    dockerfileContent += `RUN ${project.installCommand}\n`;
+                }
+                if (project.buildCommand) {
+                    dockerfileContent += `RUN ${project.buildCommand}\n`;
+                }
+                dockerfileContent += `CMD ["sh", "-c", "${project.startCommand || 'npm start'}"]\n`;
+                await fs.writeFile(dockerfilePath, dockerfileContent);
             }
-
-            tempDir = await cloneRepository(project.repoUrl, deploymentId);
             const imageTag = `${AWS_ECR_REPOSITORY_URI}:${deploymentId}`;
 
             console.log(`[Worker] Building Docker image...`);
