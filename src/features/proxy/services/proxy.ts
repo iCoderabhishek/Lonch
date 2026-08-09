@@ -1,11 +1,13 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../../../shared/libs/prisma";
 import { s3 } from "../../../shared/libs/s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { AWS_S3_BUCKET_NAME } from "../../../shared/libs/env-lib";
 import mime from "mime-types";
+import { createProxyMiddleware } from "http-proxy-middleware";
+import { getLiveContainerIp } from "./ecs-discovery";
 
-export const proxyRequest = async (req: Request, res: Response) => {
+export const proxyRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const host = req.hostname;
         let slug = "";
@@ -21,26 +23,58 @@ export const proxyRequest = async (req: Request, res: Response) => {
             return res.status(400).send("Invalid subdomain");
         }
 
-        let filePath = req.path;
-
-        if (!filePath || filePath === "/") {
-            filePath = "/index.html";
-        }
-
-        filePath = filePath.replace(/^\/+/, "");
-
-        console.log(`[Proxy] Incoming request for host: ${host} | Extracted slug: ${slug} | File: ${filePath}`);
+        console.log(`[Proxy] Incoming request for host: ${host} | Extracted slug: ${slug} | File: ${req.path}`);
 
         const project = await prisma.project.findFirst({
             where: { slug },
-            include: {
-                owner: true
-            }
+            include: { owner: true }
         });
 
         if (!project) {
             return res.status(404).send("Project not found");
         }
+
+        if (project.type === "BACKEND") {
+            if (!project.ecsServiceArn) {
+                return res.status(500).send("Backend service not properly configured");
+            }
+            
+            // ecsServiceArn typically looks like: arn:aws:ecs:region:account:service/clusterName/serviceName
+            const arnParts = project.ecsServiceArn.split(":");
+            const resourcePart = arnParts[5]; // service/clusterName/serviceName
+            if (!resourcePart) {
+                return res.status(500).send("Invalid ECS Service ARN format");
+            }
+            const parts = resourcePart.split("/");
+            if (parts.length < 3) {
+                return res.status(500).send("Invalid ECS Service ARN format");
+            }
+            const clusterName = parts[1]!;
+            const serviceName = parts[2]!;
+
+            const ip = await getLiveContainerIp(clusterName, serviceName);
+            if (!ip) {
+                return res.status(502).send("Bad Gateway: Container is down or IP could not be discovered.");
+            }
+
+            const target = `http://${ip}:${project.port || 3000}`;
+            console.log(`[Proxy] Forwarding ${slug} to ECS IP -> ${target}`);
+            
+            const proxy = createProxyMiddleware({
+                target,
+                changeOrigin: true,
+                ws: true, // Support websocket upgrades
+            });
+
+            return proxy(req, res, next);
+        }
+
+        // --- STATIC PROJECT LOGIC ---
+        let filePath = req.path;
+        if (!filePath || filePath === "/") {
+            filePath = "/index.html";
+        }
+        filePath = filePath.replace(/^\/+/, "");
 
         const deployment = await prisma.deployment.findFirst({
             where: { projectId: project.id, status: "SUCCESS" },
