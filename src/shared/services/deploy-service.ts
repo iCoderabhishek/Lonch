@@ -32,7 +32,8 @@ export const assertValidTransition = (from: DeploymentStatus, to: DeploymentStat
             [DeploymentStatus.SUCCESS]: [],
             [DeploymentStatus.FAILED]: [],
             [DeploymentStatus.CANCELLED]: [],
-            [DeploymentStatus.PUSHING]: [DeploymentStatus.SUCCESS, DeploymentStatus.FAILED]
+            [DeploymentStatus.PUSHING]: [DeploymentStatus.SUCCESS, DeploymentStatus.FAILED, DeploymentStatus.DEPLOYING],
+            [DeploymentStatus.DEPLOYING]: [DeploymentStatus.SUCCESS, DeploymentStatus.FAILED]
         }
         const nextStatuses = allowed[from]
         if (!nextStatuses.includes(to)) {

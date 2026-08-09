@@ -23,6 +23,7 @@ enum DeploymentStatus {
   FAILED
   CANCELLED
   PUSHING
+  DEPLOYING
 }
 
 model User {

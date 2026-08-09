@@ -163,8 +163,8 @@ export const backendDeployWorker = new Worker(
                 })
             );
 
-            console.log(`[Worker] ECS update triggered. Marking deployment as SUCCESS.`);
-            await updateDeploymentStatus(deploymentId, "SUCCESS");
+            console.log(`[Worker] ECS update triggered. Marking deployment as DEPLOYING. AWS EventBridge will handle SUCCESS status.`);
+            await updateDeploymentStatus(deploymentId, "DEPLOYING");
 
         } catch (error: any) {
             console.error(`[Worker Error]:`, error);
