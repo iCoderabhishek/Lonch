@@ -112,10 +112,16 @@ export const backendDeployWorker = new Worker(
             }
 
             // 3. Map the user's project.envVars into AWS format
+            const appPort = project.port || 3000;
             const awsEnvVars = project.envVars.map((envVar: any) => ({
                 name: envVar.key,
                 value: envVar.value
             }));
+            
+            // Automatically inject the PORT variable so the user's framework binds to the correct port (if they didn't provide one)
+            if (!awsEnvVars.some((e: any) => e.name === "PORT")) {
+                awsEnvVars.push({ name: "PORT", value: appPort.toString() });
+            }
 
             // 4. Modify the container definition's environment variables and ports
             // Assuming the primary application container is the first one
@@ -129,7 +135,6 @@ export const backendDeployWorker = new Worker(
             primaryContainer.image = imageTag;
 
             // Map the exposed port
-            const appPort = project.port || 3000;
             primaryContainer.portMappings = [
                 {
                     containerPort: appPort,
