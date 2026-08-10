@@ -22,3 +22,4 @@ export const AWS_ALB_LISTENER_ARN = process.env.AWS_ALB_LISTENER_ARN as string
 export const AWS_ECS_SUBNETS = process.env.AWS_ECS_SUBNETS as string
 export const AWS_ECS_SECURITY_GROUPS = process.env.AWS_ECS_SECURITY_GROUPS as string
 export const AWS_ECS_EXECUTION_ROLE_ARN = process.env.AWS_ECS_EXECUTION_ROLE_ARN as string
+export const AWS_ALB_DNS_NAME = process.env.AWS_ALB_DNS_NAME as string

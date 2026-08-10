@@ -2,8 +2,9 @@ import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../../../shared/libs/prisma";
 import { s3 } from "../../../shared/libs/s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { AWS_S3_BUCKET_NAME } from "../../../shared/libs/env-lib";
+import { AWS_S3_BUCKET_NAME, AWS_ALB_DNS_NAME } from "../../../shared/libs/env-lib";
 import mime from "mime-types";
+import { createProxyMiddleware } from "http-proxy-middleware";
 
 export const proxyRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -33,7 +34,25 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
         }
 
         if (project.type === "BACKEND") {
-            return res.status(400).send("Backend projects are now routed directly via AWS ALB. Please ensure your DNS points to the ALB for this domain.");
+            if (!AWS_ALB_DNS_NAME) {
+                return res.status(500).send("AWS_ALB_DNS_NAME not configured on the proxy server.");
+            }
+
+            console.log(`[Proxy] Forwarding ${slug} backend request to ALB -> ${AWS_ALB_DNS_NAME}`);
+            
+            const proxy = createProxyMiddleware({
+                target: `http://${AWS_ALB_DNS_NAME}`,
+                changeOrigin: true,
+                ws: true,
+                on: {
+                    proxyReq: (proxyReq, req, res) => {
+                        // Forward the original host so the ALB Listener Rule matches it
+                        proxyReq.setHeader('Host', req.headers.host || '');
+                    }
+                }
+            });
+
+            return proxy(req, res, next);
         }
 
         // --- STATIC PROJECT LOGIC ---
