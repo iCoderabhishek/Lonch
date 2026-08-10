@@ -24,7 +24,7 @@ export const backendDeployWorker = new Worker(
             // 1. clone the repo
 
 
-            tempDir = await cloneRepository(project.repoUrl, deploymentId);
+            tempDir = await cloneRepository(project.repoUrl, deploymentId, project.branch);
 
             // 2. create dockerfile
 
