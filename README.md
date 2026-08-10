@@ -24,6 +24,13 @@ We are now moving towards supporting long-lived backend applications (Node.js, P
 4. **Routing:** Caddy will route wildcard requests for backend projects to the AWS Application Load Balancer (ALB) fronting the ECS tasks.
 5. **Persistent Logs:** Application logs will be continuously streamed from AWS CloudWatch.
 
+To handle multiple concurrent users and prevent memory crashes during resource-intensive build steps, the recommended production architecture utilizes the following AWS services:
+
+1. **Build Execution (AWS CodeBuild):** Replaces local `docker build` processes. It automatically spins up isolated virtual machines for each build, allowing infinite concurrency without crashing the host server.
+2. **API & Worker Hosting (AWS ECS with Fargate):** Replaces fixed-size VPS instances. It provides serverless container hosting that automatically scales out during traffic spikes and scales back down to save costs.
+3. **Queue / BullMQ (Amazon ElastiCache):** A fully managed Redis service that acts as the central, reliable queue for multiple distributed worker instances.
+4. **Database (Amazon RDS):** A fully managed relational database (e.g., PostgreSQL/MySQL) for reliable data storage and automated backups.
+
 ---
 
 ### Local Development

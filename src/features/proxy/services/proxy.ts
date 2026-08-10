@@ -1,11 +1,14 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../../../shared/libs/prisma";
 import { s3 } from "../../../shared/libs/s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { AWS_S3_BUCKET_NAME } from "../../../shared/libs/env-lib";
+import { AWS_S3_BUCKET_NAME, AWS_ALB_DNS_NAME } from "../../../shared/libs/env-lib";
 import mime from "mime-types";
+import { createProxyMiddleware } from "http-proxy-middleware";
 
-export const proxyRequest = async (req: Request, res: Response) => {
+let albProxy: any = null;
+
+export const proxyRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const host = req.hostname;
         let slug = "";
@@ -21,26 +24,47 @@ export const proxyRequest = async (req: Request, res: Response) => {
             return res.status(400).send("Invalid subdomain");
         }
 
-        let filePath = req.path;
-
-        if (!filePath || filePath === "/") {
-            filePath = "/index.html";
-        }
-
-        filePath = filePath.replace(/^\/+/, "");
-
-        console.log(`[Proxy] Incoming request for host: ${host} | Extracted slug: ${slug} | File: ${filePath}`);
+        console.log(`[Proxy] Incoming request for host: ${host} | Extracted slug: ${slug} | File: ${req.path}`);
 
         const project = await prisma.project.findFirst({
             where: { slug },
-            include: {
-                owner: true
-            }
+            include: { owner: true }
         });
 
         if (!project) {
             return res.status(404).send("Project not found");
         }
+
+        if (project.type === "BACKEND") {
+            if (!AWS_ALB_DNS_NAME) {
+                return res.status(500).send("AWS_ALB_DNS_NAME not configured on the proxy server.");
+            }
+
+            if (!albProxy) {
+                albProxy = createProxyMiddleware({
+                    target: `http://${AWS_ALB_DNS_NAME}`,
+                    changeOrigin: true,
+                    ws: true,
+                    on: {
+                        proxyReq: (proxyReq, req, res) => {
+                            // Forward the original host (without port) so the ALB Listener Rule matches it exactly
+                            const hostWithoutPort = (req.headers.host || '').split(':')[0] || '';
+                            proxyReq.setHeader('Host', hostWithoutPort);
+                        }
+                    }
+                });
+            }
+
+            console.log(`[Proxy] Forwarding ${slug} backend request to ALB -> ${AWS_ALB_DNS_NAME}`);
+            return albProxy(req, res, next);
+        }
+
+        // --- STATIC PROJECT LOGIC ---
+        let filePath = req.path;
+        if (!filePath || filePath === "/") {
+            filePath = "/index.html";
+        }
+        filePath = filePath.replace(/^\/+/, "");
 
         const deployment = await prisma.deployment.findFirst({
             where: { projectId: project.id, status: "SUCCESS" },

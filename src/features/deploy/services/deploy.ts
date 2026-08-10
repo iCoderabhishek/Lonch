@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express"
 import { ApiError } from "../../../shared/libs/error"
 import { prisma } from "../../../shared/libs/prisma"
-import { triggerDeploy } from "../../../shared/worker/buildJob"
+import { triggerDeploy } from "../../../shared/services/deploy-service"
 
 export const deploy = async (req: Request, res: Response, next: NextFunction) => {
 

@@ -23,6 +23,7 @@ enum DeploymentStatus {
   FAILED
   CANCELLED
   PUSHING
+  DEPLOYING
 }
 
 model User {
@@ -59,11 +60,13 @@ model Project {
   startCommand      String?
   rootDirectory     String?              @default("/")
   outDirectory      String?
+  ecsServiceArn     String?
   deployments       Deployment[]
   envVars           EnvVar[]
   disabled          Boolean              @default(false)
   maxMemory         Int?                 @default(1073741824) // 1GB in bytes
   maxCpu            Int?                 @default(1)
+  port              Int?                 @default(3000)
 }
 
 model Deployment {

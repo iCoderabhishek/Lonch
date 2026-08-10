@@ -8,7 +8,7 @@ export const proxyInterceptor = (req: Request, res: Response, next: NextFunction
     }
 
     if (host.endsWith(".lonch.0bhishek.com") || host.endsWith(".localhost")) {
-        return proxyRequest(req, res);
+        return proxyRequest(req, res, next);
     }
 
     next();
