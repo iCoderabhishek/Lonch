@@ -49,3 +49,87 @@ export const getRepos = async (req: Request, res: Response, next: NextFunction) 
         next(error);
     }
 }
+
+export const getBranches = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?.userId;
+        const { owner, repo } = req.params;
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { githubInstallationId: true }
+        });
+
+        if (!user?.githubInstallationId) {
+            return next(ApiError.badRequest("Not installed with GitHub app"));
+        }
+
+        const installationToken = await getInstallationToken(user.githubInstallationId);
+
+        const response = await axios.get(
+            `https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`,
+            {
+                headers: {
+                    Authorization: `Bearer ${installationToken}`,
+                    Accept: "application/vnd.github+json",
+                    "User-Agent": "lonch",
+                },
+            }
+        );
+
+        const branches = response.data.map((b: any) => ({
+            name: b.name,
+        }));
+
+        res.json({ branches });
+    } catch (error) {
+        console.error("GitHub branches error:", error);
+        next(error);
+    }
+}
+
+export const getCommits = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?.userId;
+        const { owner, repo } = req.params;
+        const branch = req.query.branch as string || ""; // optional branch
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { githubInstallationId: true }
+        });
+
+        if (!user?.githubInstallationId) {
+            return next(ApiError.badRequest("Not installed with GitHub app"));
+        }
+
+        const installationToken = await getInstallationToken(user.githubInstallationId);
+
+        let url = `https://api.github.com/repos/${owner}/${repo}/commits?per_page=20`;
+        if (branch) {
+            url += `&sha=${encodeURIComponent(branch)}`;
+        }
+
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `Bearer ${installationToken}`,
+                Accept: "application/vnd.github+json",
+                "User-Agent": "lonch",
+            },
+        });
+
+        const commits = response.data.map((c: any) => ({
+            sha: c.sha,
+            message: c.commit.message,
+            authorName: c.commit.author.name,
+            authorAvatar: c.author?.avatar_url,
+            url: c.html_url,
+            date: c.commit.author.date,
+        }));
+
+        res.json({ commits });
+    } catch (error) {
+        console.error("GitHub commits error:", error);
+        next(error);
+    }
+}
