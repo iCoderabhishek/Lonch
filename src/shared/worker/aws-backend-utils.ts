@@ -136,6 +136,7 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
         TargetType: "ip",
         HealthCheckPath: "/",
         HealthCheckIntervalSeconds: 30,
+        Matcher: { HttpCode: "200-499" }
     }));
     const targetGroupArn = tgResponse.TargetGroups?.[0]?.TargetGroupArn;
     if (!targetGroupArn) throw new Error("Failed to create ALB Target Group");

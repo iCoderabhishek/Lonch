@@ -91,17 +91,27 @@ export const processGithubWebhook = async (payload: any, eventName: string) => {
         return;
     }
 
+    // Fallback: If repoId is NULL in the database, we search by the repository URLs
+    const repoHtmlUrl = payload.repository?.html_url;
+    const repoCloneUrl = payload.repository?.clone_url;
+
     // Find all projects in the database that are linked to this GitHub repository
     const projects = await prisma.project.findMany({
-        where: { repoId: repoId }
+        where: {
+            OR: [
+                { repoId: repoId },
+                { repoUrl: repoHtmlUrl },
+                { repoUrl: repoCloneUrl }
+            ]
+        }
     });
 
     if (projects.length === 0) {
-        console.log(`[GitHub Webhook] No projects found for repo ID ${repoId}.`);
+        console.log(`[GitHub Webhook] No projects found for repo ID ${repoId} or URLs ${repoHtmlUrl} / ${repoCloneUrl}.`);
         return;
     }
 
-    console.log(`[GitHub Webhook] Found ${projects.length} project(s) linked to repo ${repoId}. Queuing deployments...`);
+    console.log(`[GitHub Webhook] Found ${projects.length} project(s) linked to repo. Queuing deployments...`);
 
     for (const project of projects) {
         if (project.disabled) {
