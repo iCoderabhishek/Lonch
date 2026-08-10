@@ -8,3 +8,4 @@ if (!REDIS_URL) {
 export const deployQueue = new Queue("deployments", { connection: { url: REDIS_URL } })
 export const staticBuildQueue = new Queue("static-build", { connection: { url: REDIS_URL } });
 export const backendBuildQueue = new Queue("backend-build", { connection: { url: REDIS_URL } })
+export const teardownQueue = new Queue("teardown-build", { connection: { url: REDIS_URL } })
