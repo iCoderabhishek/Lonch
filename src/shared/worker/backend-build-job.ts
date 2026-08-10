@@ -79,13 +79,14 @@ export const backendDeployWorker = new Worker(
             console.log(`[Worker] ECS update triggered. Marking deployment as DEPLOYING.`);
             await updateDeploymentStatus(deploymentId, "DEPLOYING");
             
-            await waitForEcsService(project);
-            
-            console.log(`[Worker] Deployment fully completed! Marking as SUCCESS.`);
-            await updateDeploymentStatus(deploymentId, "SUCCESS");
+            // Note: We NO LONGER wait for ECS to become stable here!
+            // The worker finishes instantly so it can process the next user's job.
+            // When AWS finishes the deployment in a few minutes, it will send a webhook
+            // to our /api/v1/webhooks/aws/ecs route, which will mark it as SUCCESS or FAILED!
             
             console.log(`\n======================================================`);
-            console.log(`🚀 LIVE URLS READY:`);
+            console.log(`🚀 DEPLOYMENT TRIGGERED SUCCESSFULLY!`);
+            console.log(`AWS is now spinning up your containers in the background.`);
             console.log(`🌍 Production: https://${project.slug}.lonch.0bhishek.com`);
             console.log(`💻 Local Test: http://${project.slug}.localhost:8080`);
             console.log(`======================================================\n`);
