@@ -57,7 +57,7 @@ export const backendDeployWorker = new Worker(
             await authenticateECR();
 
             console.log(`[Worker] Pushing image to ECR...`);
-            await updateDeploymentStatus(deploymentId, "PUSHING");
+            await updateDeploymentStatus(deploymentId, "PUSHING", { imageUri: imageTag });
             await runCommandWithStreaming('docker', ['push', imageTag], deploymentId, tempDir);
             console.log(`[Worker] Image pushed successfully`);
 
