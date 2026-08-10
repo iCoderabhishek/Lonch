@@ -1,5 +1,5 @@
 import { prisma } from "../../../shared/libs/prisma";
-import { updateDeploymentStatus } from "../../../shared/services/deploy-service";
+import { updateDeploymentStatus, triggerDeploy } from "../../../shared/services/deploy-service";
 
 export const processAwsEcsWebhook = async (payload: any) => {
     // We only care about ECS events
@@ -65,6 +65,65 @@ export const processAwsEcsWebhook = async (payload: any) => {
                     }
                 });
             }
+        }
+    }
+};
+
+export const processGithubWebhook = async (payload: any, eventName: string) => {
+    if (eventName !== "push") {
+        console.log(`[GitHub Webhook] Ignoring event type: ${eventName}`);
+        return;
+    }
+
+    const repoId = payload.repository?.id;
+    const pushedRef = payload.ref; // e.g., 'refs/heads/main'
+    const defaultBranch = payload.repository?.default_branch;
+
+    if (!repoId || !pushedRef) {
+        console.error("[GitHub Webhook] Invalid payload structure. Missing repoId or ref.");
+        return;
+    }
+
+    // We only want to trigger deployments if they pushed to the default branch (e.g. main/master)
+    // NOTE: If you add a "branch" field to the Project model in the future, you can check it here!
+    if (pushedRef !== `refs/heads/${defaultBranch}`) {
+        console.log(`[GitHub Webhook] Ignoring push to branch ${pushedRef}. Default branch is ${defaultBranch}.`);
+        return;
+    }
+
+    // Fallback: If repoId is NULL in the database, we search by the repository URLs
+    const repoHtmlUrl = payload.repository?.html_url;
+    const repoCloneUrl = payload.repository?.clone_url;
+
+    // Find all projects in the database that are linked to this GitHub repository
+    const projects = await prisma.project.findMany({
+        where: {
+            OR: [
+                { repoId: repoId },
+                { repoUrl: repoHtmlUrl },
+                { repoUrl: repoCloneUrl }
+            ]
+        }
+    });
+
+    if (projects.length === 0) {
+        console.log(`[GitHub Webhook] No projects found for repo ID ${repoId} or URLs ${repoHtmlUrl} / ${repoCloneUrl}.`);
+        return;
+    }
+
+    console.log(`[GitHub Webhook] Found ${projects.length} project(s) linked to repo. Queuing deployments...`);
+
+    for (const project of projects) {
+        if (project.disabled) {
+            console.log(`[GitHub Webhook] Skipping project ${project.id} because it is disabled.`);
+            continue;
+        }
+
+        try {
+            await triggerDeploy(project.id);
+            console.log(`[GitHub Webhook] Successfully queued deployment for project: ${project.slug}`);
+        } catch (error) {
+            console.error(`[GitHub Webhook] Failed to queue deployment for project ${project.id}:`, error);
         }
     }
 };
