@@ -52,6 +52,7 @@ model Project {
   updatedAt         DateTime             @updatedAt
   repoUrl           String
   repoId            Int?
+  branch            String               @default("main")
   type              ProjectType          @default(STATIC)
   framework         String?
   baseImage         String?              @default("node:20-alpine")
