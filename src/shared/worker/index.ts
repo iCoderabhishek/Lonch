@@ -1,5 +1,6 @@
 import { staticDeployWorker } from "./static-build-job";
 import { backendDeployWorker } from "./backend-build-job";
+import { teardownWorker } from "./teardown-job";
 
 console.log(" Worker process started. Listening for jobs...");
 
@@ -7,6 +8,7 @@ const shutdown = async () => {
     console.log("Shutting down workers...");
     await staticDeployWorker.close();
     await backendDeployWorker.close();
+    await teardownWorker.close();
     process.exit(0);
 };
 
