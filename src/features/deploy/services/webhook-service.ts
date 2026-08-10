@@ -84,12 +84,6 @@ export const processGithubWebhook = async (payload: any, eventName: string) => {
         return;
     }
 
-    // We only want to trigger deployments if they pushed to the default branch (e.g. main/master)
-    // NOTE: If you add a "branch" field to the Project model in the future, you can check it here!
-    if (pushedRef !== `refs/heads/${defaultBranch}`) {
-        console.log(`[GitHub Webhook] Ignoring push to branch ${pushedRef}. Default branch is ${defaultBranch}.`);
-        return;
-    }
 
     // Fallback: If repoId is NULL in the database, we search by the repository URLs
     const repoHtmlUrl = payload.repository?.html_url;
@@ -116,6 +110,12 @@ export const processGithubWebhook = async (payload: any, eventName: string) => {
     for (const project of projects) {
         if (project.disabled) {
             console.log(`[GitHub Webhook] Skipping project ${project.id} because it is disabled.`);
+            continue;
+        }
+
+        const targetBranch = project.branch || defaultBranch || "main";
+        if (pushedRef !== `refs/heads/${targetBranch}`) {
+            console.log(`[GitHub Webhook] Skipping project ${project.id}. Pushed branch (${pushedRef}) does not match project branch (refs/heads/${targetBranch}).`);
             continue;
         }
 
