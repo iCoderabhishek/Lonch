@@ -30,10 +30,10 @@ export const getProjectForDeploy = async (projectId: string, expectedType: strin
     return project;
 };
 
-export const cloneRepository = async (repoUrl: string, deploymentId: string) => {
+export const cloneRepository = async (repoUrl: string, deploymentId: string, branch: string = "main") => {
     const tempDir = path.resolve("/tmp/builds", deploymentId);
-    console.log(`[Worker] Cloning repository: ${repoUrl} into ${tempDir}...`);
-    await execFileAsync('git', ['clone', repoUrl, tempDir]);
+    console.log(`[Worker] Cloning repository: ${repoUrl} (branch: ${branch}) into ${tempDir}...`);
+    await execFileAsync('git', ['clone', '--single-branch', '--branch', branch, repoUrl, tempDir]);
     console.log(`[Worker] Clone completed!`);
     return tempDir;
 };

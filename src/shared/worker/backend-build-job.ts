@@ -24,7 +24,7 @@ export const backendDeployWorker = new Worker(
             // 1. clone the repo
 
 
-            tempDir = await cloneRepository(project.repoUrl, deploymentId);
+            tempDir = await cloneRepository(project.repoUrl, deploymentId, project.branch);
 
             // 2. create dockerfile
 
@@ -57,7 +57,7 @@ export const backendDeployWorker = new Worker(
             await authenticateECR();
 
             console.log(`[Worker] Pushing image to ECR...`);
-            await updateDeploymentStatus(deploymentId, "PUSHING");
+            await updateDeploymentStatus(deploymentId, "PUSHING", { imageUri: imageTag });
             await runCommandWithStreaming('docker', ['push', imageTag], deploymentId, tempDir);
             console.log(`[Worker] Image pushed successfully`);
 

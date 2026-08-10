@@ -26,7 +26,7 @@ export const staticDeployWorker = new Worker(
             const project = await getProjectForDeploy(projectId, "STATIC");
 
             // 1. Clone Repo
-            tempDir = await cloneRepository(project.repoUrl, deploymentId);
+            tempDir = await cloneRepository(project.repoUrl, deploymentId, project.branch);
 
             // 2. Build Container & Stream Logs
             container = await createAndStartContainer(project, tempDir);
