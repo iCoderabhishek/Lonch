@@ -8,6 +8,7 @@
         "@aws-sdk/client-ec2": "^3.1106.0",
         "@aws-sdk/client-ecr": "^3.1106.0",
         "@aws-sdk/client-ecs": "^3.1106.0",
+        "@aws-sdk/client-elastic-load-balancing-v2": "^3.1106.0",
         "@aws-sdk/client-s3": "^3.1076.0",
         "@aws-sdk/lib-storage": "^3.1104.0",
         "@prisma/adapter-pg": "^7.8.0",
@@ -67,6 +68,8 @@
     "@aws-sdk/client-ecr": ["@aws-sdk/client-ecr@3.1106.0", "", { "dependencies": { "@aws-sdk/core": "^3.977.6", "@aws-sdk/credential-provider-node": "^3.972.78", "@aws-sdk/types": "^3.974.2", "@smithy/core": "^3.31.1", "@smithy/fetch-http-handler": "^5.6.13", "@smithy/node-http-handler": "^4.9.13", "@smithy/types": "^4.16.1", "tslib": "^2.6.2" } }, "sha512-gj8Ro9ShlLxRNLQAVUoVwALSB9uxin5FcQ/Dw4YlMyXPgyO1W4Jo1HNQryyJggKX3MahAer8pQ1qbU8leKAMFg=="],
 
     "@aws-sdk/client-ecs": ["@aws-sdk/client-ecs@3.1106.0", "", { "dependencies": { "@aws-sdk/core": "^3.977.6", "@aws-sdk/credential-provider-node": "^3.972.78", "@aws-sdk/types": "^3.974.2", "@smithy/core": "^3.31.1", "@smithy/fetch-http-handler": "^5.6.13", "@smithy/node-http-handler": "^4.9.13", "@smithy/types": "^4.16.1", "tslib": "^2.6.2" } }, "sha512-Nxm7U0feSKaTohqYEZSTSAp0Gf4yoiUHBxJhhYGI0V/VF5sOfTuzpmjkaQVsTgx0bqiPGIvrrRJqK6rK3WJfnw=="],
+
+    "@aws-sdk/client-elastic-load-balancing-v2": ["@aws-sdk/client-elastic-load-balancing-v2@3.1106.0", "", { "dependencies": { "@aws-sdk/core": "^3.977.6", "@aws-sdk/credential-provider-node": "^3.972.78", "@aws-sdk/types": "^3.974.2", "@smithy/core": "^3.31.1", "@smithy/fetch-http-handler": "^5.6.13", "@smithy/node-http-handler": "^4.9.13", "@smithy/types": "^4.16.1", "tslib": "^2.6.2" } }, "sha512-PHAzc+eHnQzj3JTzzNA/jmxFi5ZvDpOKe818YQipanVUqPT0iqq1p2Y/vmR1EYu9Th7zA3pWwyrRgWcd45nJQw=="],
 
     "@aws-sdk/client-s3": ["@aws-sdk/client-s3@3.1076.0", "", { "dependencies": { "@aws-crypto/sha1-browser": "5.2.0", "@aws-crypto/sha256-browser": "5.2.0", "@aws-crypto/sha256-js": "5.2.0", "@aws-sdk/core": "^3.974.24", "@aws-sdk/credential-provider-node": "^3.972.59", "@aws-sdk/middleware-flexible-checksums": "^3.974.34", "@aws-sdk/middleware-sdk-s3": "^3.972.55", "@aws-sdk/signature-v4-multi-region": "^3.996.36", "@aws-sdk/types": "^3.973.14", "@smithy/core": "^3.27.0", "@smithy/fetch-http-handler": "^5.6.0", "@smithy/node-http-handler": "^4.9.0", "@smithy/types": "^4.15.0", "tslib": "^2.6.2" } }, "sha512-gqI0asnN73cm5W71rixc7NYvOr3+/tuyzMhG2hW+4aC5q5XcHP0JAeF/Dpac6vEsQhJtmlhXJ0oDCsXrFFnvUQ=="],
 
