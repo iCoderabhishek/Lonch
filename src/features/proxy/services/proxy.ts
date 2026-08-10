@@ -6,6 +6,8 @@ import { AWS_S3_BUCKET_NAME, AWS_ALB_DNS_NAME } from "../../../shared/libs/env-l
 import mime from "mime-types";
 import { createProxyMiddleware } from "http-proxy-middleware";
 
+let albProxy: any = null;
+
 export const proxyRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const host = req.hostname;
@@ -38,21 +40,23 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
                 return res.status(500).send("AWS_ALB_DNS_NAME not configured on the proxy server.");
             }
 
-            console.log(`[Proxy] Forwarding ${slug} backend request to ALB -> ${AWS_ALB_DNS_NAME}`);
-            
-            const proxy = createProxyMiddleware({
-                target: `http://${AWS_ALB_DNS_NAME}`,
-                changeOrigin: true,
-                ws: true,
-                on: {
-                    proxyReq: (proxyReq, req, res) => {
-                        // Forward the original host so the ALB Listener Rule matches it
-                        proxyReq.setHeader('Host', req.headers.host || '');
+            if (!albProxy) {
+                albProxy = createProxyMiddleware({
+                    target: `http://${AWS_ALB_DNS_NAME}`,
+                    changeOrigin: true,
+                    ws: true,
+                    on: {
+                        proxyReq: (proxyReq, req, res) => {
+                            // Forward the original host (without port) so the ALB Listener Rule matches it exactly
+                            const hostWithoutPort = (req.headers.host || '').split(':')[0] || '';
+                            proxyReq.setHeader('Host', hostWithoutPort);
+                        }
                     }
-                }
-            });
+                });
+            }
 
-            return proxy(req, res, next);
+            console.log(`[Proxy] Forwarding ${slug} backend request to ALB -> ${AWS_ALB_DNS_NAME}`);
+            return albProxy(req, res, next);
         }
 
         // --- STATIC PROJECT LOGIC ---

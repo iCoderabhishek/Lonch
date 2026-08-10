@@ -7,7 +7,7 @@ import { promisify } from "util";
 import { execFile } from "child_process";
 import fs from "fs/promises";
 import path from "path";
-import { authenticateECR, provisionNewEcsService, updateExistingEcsService } from "./aws-backend-utils";
+import { authenticateECR, ensureEcrRepositoryExists, provisionNewEcsService, updateExistingEcsService, waitForEcsService } from "./aws-backend-utils";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,6 +53,7 @@ export const backendDeployWorker = new Worker(
             // 3. push image to ECR
 
 
+            await ensureEcrRepositoryExists();
             await authenticateECR();
 
             console.log(`[Worker] Pushing image to ECR...`);
@@ -65,13 +66,29 @@ export const backendDeployWorker = new Worker(
             if (!project.ecsServiceArn) {
                 await provisionNewEcsService(project, imageTag, appPort);
             } else {
-                await updateExistingEcsService(project, imageTag, appPort);
+                try {
+                    await updateExistingEcsService(project, imageTag, appPort);
+                } catch (updateErr: any) {
+                    console.error(`[Worker] Failed to update existing ECS service (${updateErr.message}). The saved ARN might be invalid or deleted. Falling back to provisioning a new service...`);
+                    await provisionNewEcsService(project, imageTag, appPort);
+                }
             }
 
             // 4. update deployment status
 
-            console.log(`[Worker] ECS update triggered. Marking deployment as DEPLOYING. AWS EventBridge will handle SUCCESS status.`);
+            console.log(`[Worker] ECS update triggered. Marking deployment as DEPLOYING.`);
             await updateDeploymentStatus(deploymentId, "DEPLOYING");
+            
+            await waitForEcsService(project);
+            
+            console.log(`[Worker] Deployment fully completed! Marking as SUCCESS.`);
+            await updateDeploymentStatus(deploymentId, "SUCCESS");
+            
+            console.log(`\n======================================================`);
+            console.log(`🚀 LIVE URLS READY:`);
+            console.log(`🌍 Production: https://${project.slug}.lonch.0bhishek.com`);
+            console.log(`💻 Local Test: http://${project.slug}.localhost:8080`);
+            console.log(`======================================================\n`);
 
         } catch (error: any) {
             console.error(`[Worker Error]:`, error);
