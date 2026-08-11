@@ -13,18 +13,20 @@ export const deploy = async (req: Request, res: Response, next: NextFunction) =>
         if (!userId) {
             return res.status(401).json({ message: "Unauthorized" })
         }
-        if (!repoUrl || !projectId) {
-            return res.status(400).json({ message: "Invalid request" })
+        if (!projectId) {
+            return res.status(400).json({ message: "Invalid request: missing projectId" })
         }
-
+        // Fetch the project first to access stored repo URL
         const project = await prisma.project.findUnique({
-            where: {
-                id: projectId
-            }
+            where: { id: projectId }
         })
-
         if (!project) {
             return res.status(404).json({ message: "Project not found" })
+        }
+        // repoUrl is optional for repeat deployments; use stored value if not provided
+        const effectiveRepoUrl = repoUrl || project.repoUrl
+        if (!effectiveRepoUrl) {
+            return res.status(400).json({ message: "Invalid request: missing repoUrl" })
         }
 
         if (project.ownerId !== userId) {
@@ -41,8 +43,8 @@ export const deploy = async (req: Request, res: Response, next: NextFunction) =>
         })
 
 
+        // Use the resolved repoUrl for any further logic if needed (currently triggerDeploy only needs projectId)
         const newDeployment = await triggerDeploy(projectId);
-
         return res.status(200).json({
             message: "Deployment queued successfully",
             deployment: newDeployment
