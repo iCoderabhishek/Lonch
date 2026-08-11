@@ -12,26 +12,25 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
     try {
         const host = req.hostname;
         let slug = "";
+        let isCustomDomain = false;
 
         if (host.endsWith(".lonch.0bhishek.com")) {
             slug = host.replace(".lonch.0bhishek.com", "");
         } else if (host.endsWith(".localhost")) {
             slug = host.replace(".localhost", "");
+        } else {
+            isCustomDomain = true;
         }
 
-        if (!slug) {
-            console.log(`[Proxy] Invalid subdomain for host: ${host}`);
-            return res.status(400).send("Invalid subdomain");
-        }
-
-        console.log(`[Proxy] Incoming request for host: ${host} | Extracted slug: ${slug} | File: ${req.path}`);
+        console.log(`[Proxy] Incoming request for host: ${host} | File: ${req.path}`);
 
         const project = await prisma.project.findFirst({
-            where: { slug },
+            where: isCustomDomain ? { customDomain: host } : { slug },
             include: { owner: true }
         });
 
         if (!project) {
+            console.log(`[Proxy] Project not found for host: ${host}`);
             return res.status(404).send("Project not found");
         }
 
