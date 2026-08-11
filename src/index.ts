@@ -6,12 +6,18 @@ import repoRoute from "./features/repo/routes"
 import deployRoute from "./features/deploy/routes"
 import { errorHandler } from "./shared/libs/error"
 import cookieSession from "cookie-session"
-import { COOKIE_DOMAIN } from "./shared/libs/env-lib"
+import cors from "cors"
+import { COOKIE_DOMAIN, FRONTEND_URL } from "./shared/libs/env-lib"
 import projectRoute from "./projects/routes";
 import { proxyInterceptor } from "./features/proxy/middleware";
 import logRoute from "./features/logs/routes";
 import webhookRoute from "./features/deploy/routes/webhooks";
 const app = express()
+
+app.use(cors({
+    origin: FRONTEND_URL,
+    credentials: true,
+}))
 
 app.use(proxyInterceptor);
 
