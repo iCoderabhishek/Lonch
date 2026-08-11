@@ -46,6 +46,7 @@ model Project {
   name              String
   slug              String               @unique
   customDomain      String?              @unique
+  acmCertificateArn String?
   ownerId           String
   owner             User                 @relation(fields: [ownerId], references: [id])
   createdAt         DateTime             @default(now())
