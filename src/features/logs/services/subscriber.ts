@@ -11,7 +11,6 @@ export const getBuildLogs = async (req: Request, res: Response, next: NextFuncti
     res.setHeader("Connection", "keep-alive");
 
     const subscriber = redis.duplicate();
-    await subscriber.connect();
 
     await subscriber.subscribe(`deploy-log:${deploymentId}`, (message: any) => {
         res.write(`data: ${message}\n\n`);
