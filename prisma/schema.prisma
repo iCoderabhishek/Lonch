@@ -45,6 +45,7 @@ model Project {
   id                String               @id @default(uuid())
   name              String
   slug              String               @unique
+  customDomain      String?              @unique
   ownerId           String
   owner             User                 @relation(fields: [ownerId], references: [id])
   createdAt         DateTime             @default(now())
