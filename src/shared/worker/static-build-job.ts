@@ -13,7 +13,7 @@ import {
 } from "./static-worker-utils";
 
 export const staticDeployWorker = new Worker(
-    "deploy-static",
+    "static-build",
     async (job) => {
         console.log(`[Worker] Started processing job for deployment: ${job.data.deploymentId}`);
         const { deploymentId, projectId } = job.data;

@@ -9,11 +9,17 @@ export const getBuildLogs = async (req: Request, res: Response, next: NextFuncti
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.flushHeaders(); // Send headers immediately to establish the SSE connection
 
     const subscriber = redis.duplicate();
 
-    await subscriber.subscribe(`deploy-log:${deploymentId}`, (message: any) => {
-        res.write(`data: ${message}\n\n`);
+    await subscriber.subscribe(`deploy-log:${deploymentId}`);
+
+    subscriber.on("message", (channel, message) => {
+        if (channel === `deploy-log:${deploymentId}`) {
+            console.log(`[SSE] Sending message to ${deploymentId}:`, message.substring(0, 50));
+            res.write(`data: ${message}\n\n`);
+        }
     });
 
     req.on("close", async () => {

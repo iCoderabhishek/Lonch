@@ -69,14 +69,16 @@ export const streamLogsToRedisAndDB = async (container: Docker.Container, deploy
     const stream = await container.logs({ follow: true, stdout: true, stderr: true });
 
     stream.on('data', (chunk) => {
-        const logLine = chunk.toString('utf8');
-        console.log(`[Worker] ${logLine}`);
-        redisPublisher.publish(`deploy-log:${deploymentId}`, logLine);
+        const logData = chunk.toString('utf8');
+        logData.split('\n').filter(Boolean).forEach((line: string) => {
+            console.log(`[Worker] ${line}`);
+            redisPublisher.publish(`deploy-log:${deploymentId}`, line);
 
-        allLogs.push({
-            deploymentId,
-            line: logLine,
-            stream: "stdout"
+            allLogs.push({
+                deploymentId,
+                line: line,
+                stream: "stdout"
+            });
         });
     });
 

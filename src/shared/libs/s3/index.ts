@@ -36,10 +36,10 @@ export async function uploadArtifactToS3(deploymentId: string, tarStream: NodeJS
 export async function uploadFolderToS3(localFolderPath: string, s3Prefix: string) {
     const files = await fs.readdir(localFolderPath, { recursive: true });
 
-    await Promise.all(files.map(async (file: string) => {
+    for (const file of files) {
         const fullPath = path.join(localFolderPath, file);
         const stat = await fs.stat(fullPath);
-        if (!stat.isFile()) return;
+        if (!stat.isFile()) continue;
 
         await new Upload({
             client: s3,
@@ -50,7 +50,7 @@ export async function uploadFolderToS3(localFolderPath: string, s3Prefix: string
                 ContentType: mime.lookup(fullPath) || "application/octet-stream",
             },
         }).done();
-    }));
+    }
 
     console.log(`Successfully uploaded folder to ${s3Prefix}`);
 }
