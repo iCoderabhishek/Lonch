@@ -3,6 +3,7 @@ import { prisma } from "../../shared/libs/prisma";
 import dns from "dns";
 import { promisify } from "util";
 import { requestCertificate, getCertificateStatus, attachCertificateToAlb } from "../../shared/services/acm-service";
+import { PROXY_IP, DEPLOYMENT_DOMAIN } from "../../shared/libs/env-lib";
 
 const resolveCname = promisify(dns.resolveCname);
 const resolve4 = promisify(dns.resolve4);
@@ -12,7 +13,6 @@ export const verifyCustomDomain = async (req: Request, res: Response) => {
         const slug = req.params.slug as string;
         // @ts-ignore
         const userId = req.user?.id; 
-        const PROXY_IP = "65.0.208.205"; 
 
         const project = await prisma.project.findUnique({ where: { slug } });
 
@@ -34,7 +34,7 @@ export const verifyCustomDomain = async (req: Request, res: Response) => {
             } else if (!isApex) {
                 // If it's a subdomain and A record didn't match, check CNAME
                 const cnames = await resolveCname(domain).catch(() => [] as string[]);
-                if (cnames.some(c => c.includes("lonch.0bhishek.com") || c.includes("amazonaws.com") || c.includes("localhost"))) {
+                if (cnames.some(c => c.includes(DEPLOYMENT_DOMAIN) || c.includes("amazonaws.com") || c.includes("localhost"))) {
                     dnsValid = true;
                 }
             }

@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../../../shared/libs/prisma";
 import { s3 } from "../../../shared/libs/s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { AWS_S3_BUCKET_NAME, AWS_ALB_DNS_NAME } from "../../../shared/libs/env-lib";
+import { AWS_S3_BUCKET_NAME, AWS_ALB_DNS_NAME, DEPLOYMENT_DOMAIN } from "../../../shared/libs/env-lib";
 import mime from "mime-types";
 import { createProxyMiddleware } from "http-proxy-middleware";
 
@@ -14,8 +14,8 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
         let slug = "";
         let isCustomDomain = false;
 
-        if (host.endsWith(".lonch.0bhishek.com")) {
-            slug = host.replace(".lonch.0bhishek.com", "");
+        if (host.endsWith(`.${DEPLOYMENT_DOMAIN}`)) {
+            slug = host.replace(`.${DEPLOYMENT_DOMAIN}`, "");
         } else if (host.endsWith(".localhost")) {
             slug = host.replace(".localhost", "");
         } else {
