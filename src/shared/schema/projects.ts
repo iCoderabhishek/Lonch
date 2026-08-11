@@ -13,7 +13,8 @@ export const projectSchma = z.object({
     rootDirectory: z.string().optional(),
     baseImage: z.string().optional(),
     slug: z.string().optional(),
-    branch: z.string().optional()
+    branch: z.string().optional(),
+    envVars: z.array(z.object({ key: z.string(), value: z.string() })).optional()
 })
 
 export const createProjectSchema = projectSchma.omit({

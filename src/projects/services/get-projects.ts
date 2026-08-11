@@ -52,10 +52,28 @@ export async function getProjectById(req: Request, res: Response, next: NextFunc
             where: {
                 slug,
                 ownerId: userId
+            },
+            include: {
+                deployments: {
+                    orderBy: { createdAt: "desc" }
+                },
+                envVars: true
             }
         });
 
-        return res.json({ project })
+        if (!project) return res.status(404).json({ message: "Not found" });
+
+        // Mask env variables by removing their actual value so it is hidden from the client
+        const secureProject = {
+            ...project,
+            envVars: project.envVars.map(env => ({
+                id: env.id,
+                key: env.key
+                // omitting value
+            }))
+        };
+
+        return res.json({ project: secureProject })
     } catch (error) {
         next(error)
     }
