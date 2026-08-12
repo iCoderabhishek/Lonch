@@ -22,6 +22,7 @@ app.use(cors({
 app.use(proxyInterceptor);
 
 app.use(express.json())
+app.set("trust proxy", 1);
 
 app.use(cookieSession({
     name: 'session',
@@ -29,7 +30,7 @@ app.use(cookieSession({
     maxAge: 1000 * 60 * 60 * 24 * 7,
     secure: COOKIE_DOMAIN ? true : false,
     httpOnly: COOKIE_DOMAIN ? true : false,
-    sameSite: COOKIE_DOMAIN ? "strict" : "lax",
+    sameSite: "lax",
     domain: COOKIE_DOMAIN,
     secureProxy: COOKIE_DOMAIN ? true : false,
 }))
