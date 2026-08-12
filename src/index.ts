@@ -12,6 +12,8 @@ import projectRoute from "./projects/routes";
 import { proxyInterceptor } from "./features/proxy/middleware";
 import logRoute from "./features/logs/routes";
 import webhookRoute from "./features/deploy/routes/webhooks";
+import "./shared/worker/index"; // Initialize BullMQ workers
+
 const app = express()
 
 app.use(cors({
