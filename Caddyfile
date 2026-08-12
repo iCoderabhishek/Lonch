@@ -4,12 +4,12 @@
     }
 }
 
-api-lonch.0bhishek.com {
+api.lonch.cloud {
     reverse_proxy app:8080
 }
 
 # Catch-all for wildcard user subdomains
-*.lonch.0bhishek.com {
+*.lonch.cloud {
     tls {
         on_demand
     }
