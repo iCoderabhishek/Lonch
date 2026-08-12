@@ -8,7 +8,7 @@ api.lonch.cloud {
     reverse_proxy app:8080
 }
 
-:443 {
+*.lonch.cloud {
     tls {
         on_demand
     }
