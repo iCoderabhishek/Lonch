@@ -48,6 +48,14 @@ export const staticDeployWorker = new Worker(
                 staticS3Key: `projects/${projectId}/${deploymentId}`
             });
 
+            await workerLog(deploymentId, ``);
+            await workerLog(deploymentId, `======================================================`);
+            await workerLog(deploymentId, `🚀 DEPLOYMENT COMPLETED SUCCESSFULLY!`);
+            await workerLog(deploymentId, `Your static site has been uploaded to AWS S3 and is live.`);
+            await workerLog(deploymentId, `🌍 Production: https://${project.slug}.lonch.cloud`);
+            await workerLog(deploymentId, `======================================================`);
+            await workerLog(deploymentId, ``);
+
         } catch (error: any) {
             console.error(`[Worker Error]:`, error);
             await updateDeploymentStatus(deploymentId, "FAILED").catch(console.error);

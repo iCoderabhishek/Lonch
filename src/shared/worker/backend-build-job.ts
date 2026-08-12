@@ -86,12 +86,13 @@ export const backendDeployWorker = new Worker(
             // Note: We bypassed ECS stable wait and marked as SUCCESS immediately as requested.
             // When AWS finishes the deployment in a few minutes, it will be fully live.
             
-            await workerLog(deploymentId, `\n======================================================\n` +
-                                          `🚀 DEPLOYMENT TRIGGERED SUCCESSFULLY!\n` +
-                                          `AWS is now spinning up your containers in the background.\n` +
-                                          `🌍 Production: https://${project.slug}.lonch.cloud\n` +
-                                          `💻 Local Test: http://${project.slug}.localhost:8080\n` +
-                                          `======================================================\n`);
+            await workerLog(deploymentId, ``);
+            await workerLog(deploymentId, `======================================================`);
+            await workerLog(deploymentId, `🚀 DEPLOYMENT TRIGGERED SUCCESSFULLY!`);
+            await workerLog(deploymentId, `AWS is now spinning up your containers in the background.`);
+            await workerLog(deploymentId, `🌍 Production: https://${project.slug}.lonch.cloud`);
+            await workerLog(deploymentId, `======================================================`);
+            await workerLog(deploymentId, ``);
 
         } catch (error: any) {
             console.error(`[Worker Error]:`, error);
