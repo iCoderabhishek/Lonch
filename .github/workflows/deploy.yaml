@@ -1,0 +1,29 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches: [ "dev", "prod" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USERNAME }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script: |
+            if [ ! -d "$HOME/Lonch" ]; then
+              git clone https://github.com/iCoderabhishek/Lonch.git $HOME/Lonch
+            fi
+            
+            cd $HOME/Lonch
+            git fetch origin
+            git checkout dev
+            git pull origin dev
+            
+            # export PATH="$HOME/.bun/bin:$PATH"
+            # bun run docker
+            docker compose up -d --build

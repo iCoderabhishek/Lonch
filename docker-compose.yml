@@ -1,12 +1,64 @@
-version: '3.8'
 services:
+  app:
+    build: .
+    container_name: lonch-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: lonch-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
   postgres:
     image: postgres:16-alpine
-    container_name: vercelalike-postgres
-    restart: always
+    container_name: lonch-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: vercelalike
+      POSTGRES_DB: lonch
     ports:
       - "5433:5432" # Maps host port 5433 to container port 5432
+    volumes:
+      - lonch_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d lonch" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    container_name: lonch-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - lonch_redis:/data
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  lonch_postgres:
+  lonch_redis:
+  caddy_data:
+  caddy_config:

@@ -1,9 +1,9 @@
 import axios from "axios"
 import jwt from "jsonwebtoken"
+import { GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY } from "../env-lib";
 
-const GITHUB_APP_ID = process.env.GITHUB_APP_ID!
 // the .pem is multi-line; in .env it's stored with literal "\n" — restore real newlines
-const GITHUB_APP_PRIVATE_KEY = (process.env.GITHUB_APP_PRIVATE_KEY || "").replace(/\\n/g, "\n")
+const privateKey = (GITHUB_APP_PRIVATE_KEY || "").replace(/\\n/g, "\n")
 
 // Note: RS256 (RSA) - algo used by gh - asymmetric 
 const generateAppJwt = (): string => {
@@ -14,7 +14,7 @@ const generateAppJwt = (): string => {
             exp: now + 600,  // GitHub caps App JWTs at 10 minutes
             iss: GITHUB_APP_ID,
         },
-        GITHUB_APP_PRIVATE_KEY,
+        privateKey,
         { algorithm: "RS256" }
     )
 }

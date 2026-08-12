@@ -1,5 +1,6 @@
 import { prisma } from "../../shared/libs/prisma";
 import type { Request, Response } from "express";
+import { teardownQueue } from "../../shared/libs/bullmq-queue";
 
 export async function deleteProject(req: Request, res: Response) {
 
@@ -40,6 +41,14 @@ export async function deleteProject(req: Request, res: Response) {
         }
     });
 
-    return res.status(200).json({ message: "Project deleted successfully", project });
+    // Queue the teardown job
+    await teardownQueue.add("teardown-build", {
+        projectId: project.id,
+        slug: project.slug,
+        type: project.type,
+        ecsServiceArn: project.ecsServiceArn
+    });
+
+    return res.status(202).json({ message: "Project deleted successfully", project });
 
 }

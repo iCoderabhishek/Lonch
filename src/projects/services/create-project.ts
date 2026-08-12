@@ -5,7 +5,7 @@ import type { Request, Response } from "express";
 
 export async function createProject(req: Request, res: Response) {
 
-    const { name, repoUrl, type, framework, buildCommand, installCommand, startCommand, outputDirectory, rootDirectory } = createProjectSchema.parse(req.body);
+    const { name, repoUrl, type, framework, buildCommand, installCommand, startCommand, outputDirectory, rootDirectory, baseImage, branch, envVars } = createProjectSchema.parse(req.body);
 
     if (!name || !repoUrl || !type) {
         return res.status(400).json({ message: "Name, repoUrl and type are required" });
@@ -13,10 +13,10 @@ export async function createProject(req: Request, res: Response) {
 
     const randomChars = Math.random().toString(36).substring(2, 8);
     const slug = `${name.toLowerCase().trim().replace(/\s+/g, '-')}-${randomChars}`;
-    
+
     const existingProject = await prisma.project.findFirst({
         where: {
-            ownerId: req.user.id,
+            ownerId: req.user.userId,
             slug
         }
     });
@@ -36,8 +36,16 @@ export async function createProject(req: Request, res: Response) {
             startCommand,
             outDirectory: outputDirectory,
             rootDirectory,
+            baseImage,
+            branch: branch || "main",
             slug,
-            ownerId: req.user.id
+            ownerId: req.user.userId,
+            envVars: envVars && envVars.length > 0 ? {
+                create: envVars.map((ev: any) => ({
+                    key: ev.key,
+                    value: ev.value
+                }))
+            } : undefined
         }
     });
 

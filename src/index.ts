@@ -1,16 +1,26 @@
+import "dotenv/config"
 import express from "express"
 import healthRoute from "./features/health/routes"
 import authRoute from "./features/auth/routes"
 import repoRoute from "./features/repo/routes"
 import deployRoute from "./features/deploy/routes"
-import dotenv from "dotenv"
 import { errorHandler } from "./shared/libs/error"
 import cookieSession from "cookie-session"
-import { COOKIE_DOMAIN } from "./shared/libs/env-lib"
-import { authMiddleware } from "./features/auth/middleware"
-dotenv.config()
-
+import cors from "cors"
+import { COOKIE_DOMAIN, FRONTEND_URL } from "./shared/libs/env-lib"
+import projectRoute from "./projects/routes";
+import { proxyInterceptor } from "./features/proxy/middleware";
+import logRoute from "./features/logs/routes";
+import webhookRoute from "./features/deploy/routes/webhooks";
 const app = express()
+
+app.use(cors({
+    origin: FRONTEND_URL,
+    credentials: true,
+}))
+
+app.use(proxyInterceptor);
+
 app.use(express.json())
 
 app.use(cookieSession({
@@ -31,6 +41,9 @@ app.use("/health", healthRoute)
 app.use("/api/v1/auth", authRoute)
 app.use("/api/v1/github", repoRoute)
 app.use("/api/v1/deploy", deployRoute)
+app.use("/api/v1/projects", projectRoute);
+app.use("/api/v1/logs", logRoute);
+app.use("/api/v1/webhooks", webhookRoute)
 // libs handler
 app.use(errorHandler)
 

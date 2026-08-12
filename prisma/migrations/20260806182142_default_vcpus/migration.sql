@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Project" ADD COLUMN     "maxCpu" INTEGER DEFAULT 1,
+ADD COLUMN     "maxMemory" INTEGER DEFAULT 1073741824;

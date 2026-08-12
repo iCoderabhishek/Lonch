@@ -22,6 +22,8 @@ enum DeploymentStatus {
   SUCCESS
   FAILED
   CANCELLED
+  PUSHING
+  DEPLOYING
 }
 
 model User {
@@ -43,6 +45,8 @@ model Project {
   id                String               @id @default(uuid())
   name              String
   slug              String               @unique
+  customDomain      String?              @unique
+  acmCertificateArn String?
   ownerId           String
   owner             User                 @relation(fields: [ownerId], references: [id])
   createdAt         DateTime             @default(now())
@@ -50,16 +54,22 @@ model Project {
   updatedAt         DateTime             @updatedAt
   repoUrl           String
   repoId            Int?
+  branch            String               @default("main")
   type              ProjectType          @default(STATIC)
   framework         String?
+  baseImage         String?              @default("node:20-alpine")
   buildCommand      String?
   installCommand    String?
   startCommand      String?
   rootDirectory     String?              @default("/")
   outDirectory      String?
+  ecsServiceArn     String?
   deployments       Deployment[]
   envVars           EnvVar[]
   disabled          Boolean              @default(false)
+  maxMemory         Int?                 @default(1073741824) // 1GB in bytes
+  maxCpu            Int?                 @default(1)
+  port              Int?                 @default(3000)
 }
 
 model Deployment {

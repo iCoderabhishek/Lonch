@@ -3,7 +3,7 @@ import axios from "axios"
 import { ApiError } from "../../../shared/libs/error"
 import { prisma } from "../../../shared/libs/prisma"
 import { setAuthSession } from "../utils/token"
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, GITHUB_APP_NAME } from "../../../shared/libs/env-lib";
+import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, GITHUB_APP_NAME, FRONTEND_URL } from "../../../shared/libs/env-lib";
 
 // ── Step 1: redirect handler ──────────────────────────────
 export const githubRedirect = (req: Request, res: Response) => {
@@ -74,6 +74,27 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
             }
         }
 
+        let finalInstallationId = installation_id ? String(installation_id) : undefined;
+
+        // If installation_id wasn't in the query, try to fetch it from the user's installations
+        if (!finalInstallationId) {
+            try {
+                const installationsResponse = await axios.get("https://api.github.com/user/installations", {
+                    headers: {
+                        Authorization: `Bearer ${access_token}`,
+                        Accept: "application/vnd.github+json",
+                        "User-Agent": "lonch-app"
+                    }
+                });
+                if (installationsResponse.data.installations && installationsResponse.data.installations.length > 0) {
+                    // Grab the first installation ID for this app
+                    finalInstallationId = String(installationsResponse.data.installations[0].id);
+                }
+            } catch (err) {
+                console.warn("Could not fetch user installations", err);
+            }
+        }
+
         // 5. upsert the user
         const user = await prisma.user.upsert({
             where: {
@@ -83,20 +104,20 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
                 email: email,
                 avatar: avatar_url,
                 name: login,
-                githubInstallationId: installation_id ? String(installation_id) : undefined,
+                githubInstallationId: finalInstallationId,
             },
             create: {
                 email: email,
                 avatar: avatar_url,
                 name: login,
                 githubId: String(githubId),
-                githubInstallationId: installation_id ? String(installation_id) : undefined,
+                githubInstallationId: finalInstallationId,
             }
         });
 
         // 6. store tokens in session
         setAuthSession(req, access_token, user.id, refresh_token);
-        res.json({ message: "Successfully authenticated" });
+        res.redirect(`${FRONTEND_URL}/dashboard`);
 
     } catch (error) {
         console.error("GitHub callback error:", error);
