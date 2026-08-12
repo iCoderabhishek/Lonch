@@ -70,7 +70,16 @@ export const cloneRepository = async (project: any, deploymentId: string) => {
 };
 
 export const createAndStartContainer = async (project: Project, tempDir: string, deploymentId: string) => {
-    const buildImage = project.baseImage || "node:22-alpine";
+    let buildImage = project.baseImage || "node:22-alpine";
+
+    // Auto-detect if the project uses bun and the base image doesn't support it
+    const usesBun = (project.installCommand || "").includes("bun") || (project.buildCommand || "").includes("bun");
+    const imageHasBun = buildImage.includes("bun") || buildImage.includes("oven/bun");
+    if (usesBun && !imageHasBun) {
+        buildImage = "oven/bun:1-alpine";
+        await workerLog(deploymentId, `Detected bun commands. Switching base image to ${buildImage}`);
+    }
+
     await workerLog(deploymentId, `Pulling Docker image: ${buildImage}...`);
     const { stdout, stderr } = await execFileAsync('docker', ['pull', buildImage]);
     await workerLog(deploymentId, `Image pulled successfully. Details: ${stdout || stderr}`);
