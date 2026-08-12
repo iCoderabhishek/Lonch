@@ -2,8 +2,9 @@
 
 The official backend and deployment control plane for Lonch, a high-performance Platform as a Service (PaaS) designed for seamless application hosting. This repository manages dynamic infrastructure provisioning, zero-config deployment pipelines, and intelligent traffic routing to AWS services.
 
-<video src="" 
-   width="100%" autoplay loop muted playsinline></video>
+<video src="https://github.com/user-attachments/assets/2524e9d9-6e67-40c1-bbde-65247f47166c" width="100%" autoplay loop muted playsinline></video>
+
+
 
 ## Links
 
@@ -11,7 +12,6 @@ The official backend and deployment control plane for Lonch, a high-performance 
 - **Frontend Repository**: https://github.com/iCoderabhishek/client-lonch
 - **Backend Repository**: https://github.com/iCoderabhishek/Lonch
 - **Postman API Docs**: https://www.postman.com/iamabhishek-1310-s-team/workspace/lonch
-- **Video Walkthrough**: https://www.youtube.com/@0bhishekk
 
 ## Why Lonch?
 
