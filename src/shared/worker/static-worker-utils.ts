@@ -33,9 +33,9 @@ export const getProjectForDeploy = async (projectId: string, expectedType: strin
 
 export const cloneRepository = async (repoUrl: string, deploymentId: string, branch: string = "main") => {
     const tempDir = path.resolve("/tmp/builds", deploymentId);
-    
+
     // Ensure clean state before cloning
-    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { });
 
     await workerLog(deploymentId, `Cloning repository: ${repoUrl} (branch: ${branch}) into ${tempDir}...`);
     try {
@@ -43,13 +43,13 @@ export const cloneRepository = async (repoUrl: string, deploymentId: string, bra
     } catch (error: any) {
         if (error.stderr && error.stderr.includes(`Remote branch ${branch} not found`)) {
             await workerLog(deploymentId, `Branch '${branch}' not found. Falling back to the repository's default branch...`, "stderr");
-            await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {}); // cleanup again just in case
+            await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { }); // cleanup again just in case
             await execFileAsync('git', ['clone', '--single-branch', repoUrl, tempDir]);
         } else {
             throw error;
         }
     }
-    
+
     await workerLog(deploymentId, `Clone completed!`);
     return tempDir;
 };
@@ -68,7 +68,7 @@ export const createAndStartContainer = async (project: Project, tempDir: string,
         Cmd: ["/bin/sh", "-c", `${project.installCommand} && ${project.buildCommand}`],
         HostConfig: {
             Binds: [`${tempDir}:/app`],
-            Memory: project.maxMemory || 1024 * 1024 * 1024,
+            Memory: Math.max(project.maxMemory || 0, 2560 * 1024 * 1024),
             NetworkMode: "bridge",
         },
         WorkingDir: workingDir,
@@ -145,7 +145,7 @@ export const runCommandWithStreaming = (command: string, args: string[], deploym
 
         child.stdout.on('data', d => log(d, 'stdout'));
         child.stderr.on('data', d => log(d, 'stderr'));
-        
+
         child.on('close', async (code) => {
             if (allLogs.length) await prisma.deploymentLog.createMany({ data: allLogs }).catch(console.error);
             code === 0 ? resolve(true) : reject(new Error(`Command failed with code ${code}`));
