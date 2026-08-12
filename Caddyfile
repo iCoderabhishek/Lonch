@@ -5,6 +5,9 @@
 }
 
 api.lonch.cloud {
+    tls {
+        on_demand
+    }
     reverse_proxy app:8080
 }
 
