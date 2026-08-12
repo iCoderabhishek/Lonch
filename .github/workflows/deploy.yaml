@@ -20,9 +20,10 @@ jobs:
             fi
             
             cd $HOME/Lonch
+            git reset --hard HEAD
             git fetch origin
-            git checkout dev
-            git pull origin dev
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
             
             # export PATH="$HOME/.bun/bin:$PATH"
             # bun run docker
