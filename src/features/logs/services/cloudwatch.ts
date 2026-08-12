@@ -1,11 +1,19 @@
 import { ECSClient, ListTasksCommand, DescribeTasksCommand, DescribeTaskDefinitionCommand } from "@aws-sdk/client-ecs";
 import { CloudWatchLogsClient, GetLogEventsCommand } from "@aws-sdk/client-cloudwatch-logs";
-import { AWS_S3_REGION } from "../../../shared/libs/env-lib";
+import { AWS_S3_REGION, AWS_S3_ACCESS_KEY_ID, AWS_S3_SECRET_ACCESS_KEY } from "../../../shared/libs/env-lib";
 import { prisma } from "../../../shared/libs/prisma";
 import type { Request, Response, NextFunction } from "express";
 
-const ecsClient = new ECSClient({ region: AWS_S3_REGION });
-const cloudWatchClient = new CloudWatchLogsClient({ region: AWS_S3_REGION });
+const awsConfig = {
+    region: AWS_S3_REGION,
+    credentials: {
+        accessKeyId: AWS_S3_ACCESS_KEY_ID,
+        secretAccessKey: AWS_S3_SECRET_ACCESS_KEY
+    }
+};
+
+const ecsClient = new ECSClient(awsConfig);
+const cloudWatchClient = new CloudWatchLogsClient(awsConfig);
 
 export const getRuntimeLogs = async (req: Request, res: Response, next: NextFunction) => {
     const projectId = req.params.projectId as string;

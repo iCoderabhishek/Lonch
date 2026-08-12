@@ -18,13 +18,22 @@ import {
 } from "@aws-sdk/client-cloudwatch-logs";
 import { DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { s3 } from "../libs/s3";
-import { AWS_ECR_REPOSITORY_URI, AWS_ECR_REGION } from "../libs/env-lib";
+import { AWS_ECR_REPOSITORY_URI, AWS_ECR_REGION, AWS_S3_ACCESS_KEY_ID, AWS_S3_SECRET_ACCESS_KEY } from "../libs/env-lib";
 import { prisma } from "../libs/prisma";
 
 const ecrRegion = AWS_ECR_REPOSITORY_URI ? AWS_ECR_REPOSITORY_URI.split('.')[3] : AWS_ECR_REGION;
-const ecsClient = new ECSClient({ region: ecrRegion });
-const albClient = new ElasticLoadBalancingV2Client({ region: ecrRegion });
-const cloudwatchClient = new CloudWatchLogsClient({ region: ecrRegion });
+
+const awsConfig = {
+    region: ecrRegion,
+    credentials: {
+        accessKeyId: AWS_S3_ACCESS_KEY_ID,
+        secretAccessKey: AWS_S3_SECRET_ACCESS_KEY
+    }
+};
+
+const ecsClient = new ECSClient(awsConfig);
+const albClient = new ElasticLoadBalancingV2Client(awsConfig);
+const cloudwatchClient = new CloudWatchLogsClient(awsConfig);
 
 export const teardownWorker = new Worker(
     "teardown-build",

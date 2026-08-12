@@ -31,7 +31,9 @@ import {
     AWS_ECS_SUBNETS,
     AWS_ECS_SECURITY_GROUPS,
     AWS_ECS_EXECUTION_ROLE_ARN,
-    AWS_ECR_REPOSITORY_URI
+    AWS_ECR_REPOSITORY_URI,
+    AWS_S3_ACCESS_KEY_ID,
+    AWS_S3_SECRET_ACCESS_KEY
 } from "../libs/env-lib";
 import { prisma } from "../libs/prisma";
 import { promisify } from "util";
@@ -41,10 +43,19 @@ import { workerLog } from "./logger";
 const execFileAsync = promisify(execFile);
 
 const ecrRegion = AWS_ECR_REPOSITORY_URI ? AWS_ECR_REPOSITORY_URI.split('.')[3] : AWS_ECR_REGION;
-const ecsClient = new ECSClient({ region: ecrRegion });
-const albClient = new ElasticLoadBalancingV2Client({ region: ecrRegion });
-const ecrClient = new ECRClient({ region: ecrRegion });
-const cloudwatchClient = new CloudWatchLogsClient({ region: ecrRegion });
+
+const awsConfig = {
+    region: ecrRegion,
+    credentials: {
+        accessKeyId: AWS_S3_ACCESS_KEY_ID,
+        secretAccessKey: AWS_S3_SECRET_ACCESS_KEY
+    }
+};
+
+const ecsClient = new ECSClient(awsConfig);
+const albClient = new ElasticLoadBalancingV2Client(awsConfig);
+const ecrClient = new ECRClient(awsConfig);
+const cloudwatchClient = new CloudWatchLogsClient(awsConfig);
 
 export async function authenticateECR(deploymentId: string) {
     await workerLog(deploymentId, `Authenticating with AWS ECR...`);
