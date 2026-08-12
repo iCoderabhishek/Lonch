@@ -3,7 +3,7 @@ import axios from "axios"
 import { ApiError } from "../../../shared/libs/error"
 import { prisma } from "../../../shared/libs/prisma"
 import { setAuthSession } from "../utils/token"
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, GITHUB_APP_NAME } from "../../../shared/libs/env-lib";
+import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, GITHUB_APP_NAME, FRONTEND_URL } from "../../../shared/libs/env-lib";
 
 // ── Step 1: redirect handler ──────────────────────────────
 export const githubRedirect = (req: Request, res: Response) => {
@@ -117,7 +117,7 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
 
         // 6. store tokens in session
         setAuthSession(req, access_token, user.id, refresh_token);
-        res.json({ message: "Successfully authenticated" });
+        res.redirect(`${FRONTEND_URL}/dashboard`);
 
     } catch (error) {
         console.error("GitHub callback error:", error);

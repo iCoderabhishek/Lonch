@@ -14,10 +14,13 @@ export async function triggerDeploy(projectId: string) {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) throw new ApiError(404, "Project not found");
 
+    console.log(`[DeployService] Triggering deploy for project: ${project.id} (${project.type})`);
     if (project.type == "STATIC") {
         await staticBuildQueue.add("deploy-static", { deploymentId: deployment.id, projectId });
+        console.log(`[DeployService] Added job to staticBuildQueue`);
     } else if (project.type == "BACKEND") {
         await backendBuildQueue.add("deploy-backend", { deploymentId: deployment.id, projectId });
+        console.log(`[DeployService] Added job to backendBuildQueue`);
     }
     return deployment;
 }

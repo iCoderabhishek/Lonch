@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../../../shared/libs/prisma";
 import { s3 } from "../../../shared/libs/s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { AWS_S3_BUCKET_NAME, AWS_ALB_DNS_NAME } from "../../../shared/libs/env-lib";
+import { AWS_S3_BUCKET_NAME, AWS_ALB_DNS_NAME, DEPLOYMENT_DOMAIN } from "../../../shared/libs/env-lib";
 import mime from "mime-types";
 import { createProxyMiddleware } from "http-proxy-middleware";
 
@@ -12,26 +12,25 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
     try {
         const host = req.hostname;
         let slug = "";
+        let isCustomDomain = false;
 
-        if (host.endsWith(".lonch.0bhishek.com")) {
-            slug = host.replace(".lonch.0bhishek.com", "");
+        if (host.endsWith(`.${DEPLOYMENT_DOMAIN}`)) {
+            slug = host.replace(`.${DEPLOYMENT_DOMAIN}`, "");
         } else if (host.endsWith(".localhost")) {
             slug = host.replace(".localhost", "");
+        } else {
+            isCustomDomain = true;
         }
 
-        if (!slug) {
-            console.log(`[Proxy] Invalid subdomain for host: ${host}`);
-            return res.status(400).send("Invalid subdomain");
-        }
-
-        console.log(`[Proxy] Incoming request for host: ${host} | Extracted slug: ${slug} | File: ${req.path}`);
+        console.log(`[Proxy] Incoming request for host: ${host} | File: ${req.path}`);
 
         const project = await prisma.project.findFirst({
-            where: { slug },
+            where: isCustomDomain ? { customDomain: host } : { slug },
             include: { owner: true }
         });
 
         if (!project) {
+            console.log(`[Proxy] Project not found for host: ${host}`);
             return res.status(404).send("Project not found");
         }
 

@@ -10,6 +10,7 @@ import { uploadFolderToS3 } from "../libs/s3";
 import { AWS_S3_REGION, AWS_S3_BUCKET_NAME } from "../libs/env-lib";
 import fs from "fs/promises";
 import { ApiError } from "../libs/error";
+import { workerLog } from "./logger";
 
 const execFileAsync = promisify(execFile);
 
@@ -32,17 +33,32 @@ export const getProjectForDeploy = async (projectId: string, expectedType: strin
 
 export const cloneRepository = async (repoUrl: string, deploymentId: string, branch: string = "main") => {
     const tempDir = path.resolve("/tmp/builds", deploymentId);
-    console.log(`[Worker] Cloning repository: ${repoUrl} (branch: ${branch}) into ${tempDir}...`);
-    await execFileAsync('git', ['clone', '--single-branch', '--branch', branch, repoUrl, tempDir]);
-    console.log(`[Worker] Clone completed!`);
+
+    // Ensure clean state before cloning
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { });
+
+    await workerLog(deploymentId, `Cloning repository: ${repoUrl} (branch: ${branch}) into ${tempDir}...`);
+    try {
+        await execFileAsync('git', ['clone', '--single-branch', '--branch', branch, repoUrl, tempDir]);
+    } catch (error: any) {
+        if (error.stderr && error.stderr.includes(`Remote branch ${branch} not found`)) {
+            await workerLog(deploymentId, `Branch '${branch}' not found. Falling back to the repository's default branch...`, "stderr");
+            await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { }); // cleanup again just in case
+            await execFileAsync('git', ['clone', '--single-branch', repoUrl, tempDir]);
+        } else {
+            throw error;
+        }
+    }
+
+    await workerLog(deploymentId, `Clone completed!`);
     return tempDir;
 };
 
-export const createAndStartContainer = async (project: Project, tempDir: string) => {
+export const createAndStartContainer = async (project: Project, tempDir: string, deploymentId: string) => {
     const buildImage = project.baseImage || "node:22-alpine";
-    console.log(`[Worker] Pulling Docker image: ${buildImage}...`);
+    await workerLog(deploymentId, `Pulling Docker image: ${buildImage}...`);
     const { stdout, stderr } = await execFileAsync('docker', ['pull', buildImage]);
-    console.log(`[Worker] Image pulled successfully. Details: ${stdout || stderr}`);
+    await workerLog(deploymentId, `Image pulled successfully. Details: ${stdout || stderr}`);
 
     const workingDir = project.rootDirectory ? path.posix.join("/app", project.rootDirectory) : "/app";
 
@@ -52,15 +68,15 @@ export const createAndStartContainer = async (project: Project, tempDir: string)
         Cmd: ["/bin/sh", "-c", `${project.installCommand} && ${project.buildCommand}`],
         HostConfig: {
             Binds: [`${tempDir}:/app`],
-            Memory: project.maxMemory || 1024 * 1024 * 1024,
+            Memory: Math.max(project.maxMemory || 0, 2560 * 1024 * 1024),
             NetworkMode: "bridge",
         },
         WorkingDir: workingDir,
     });
 
-    console.log(`[Worker] Docker container created. Starting container...`);
+    await workerLog(deploymentId, `Docker container created. Starting container...`);
     await container.start();
-    console.log(`[Worker] Container started.`);
+    await workerLog(deploymentId, `Container started.`);
     return container;
 };
 
@@ -69,14 +85,16 @@ export const streamLogsToRedisAndDB = async (container: Docker.Container, deploy
     const stream = await container.logs({ follow: true, stdout: true, stderr: true });
 
     stream.on('data', (chunk) => {
-        const logLine = chunk.toString('utf8');
-        console.log(`[Worker] ${logLine}`);
-        redisPublisher.publish(`deploy-log:${deploymentId}`, logLine);
+        const logData = chunk.toString('utf8');
+        logData.split('\n').filter(Boolean).forEach((line: string) => {
+            console.log(`[Worker] ${line}`);
+            redisPublisher.publish(`deploy-log:${deploymentId}`, line);
 
-        allLogs.push({
-            deploymentId,
-            line: logLine,
-            stream: "stdout"
+            allLogs.push({
+                deploymentId,
+                line: line,
+                stream: "stdout"
+            });
         });
     });
 
@@ -97,10 +115,10 @@ export const uploadStaticAssetsToS3 = async (tempDir: string, project: Project, 
     const outputPath = project.outDirectory || "dist";
     const localDistPath = path.join(tempDir, outputPath);
 
-    console.log(`[Worker] Build completed! Uploading ${localDistPath} to S3...`);
+    await workerLog(deploymentId, `Build completed! Uploading ${localDistPath} to S3...`);
     const s3Prefix = `projects/${project.id}/${deploymentId}`;
     await uploadFolderToS3(localDistPath, s3Prefix);
-    console.log(`[Worker] Upload to S3 completed!`);
+    await workerLog(deploymentId, `Upload to S3 completed!`);
 
     return `https://${AWS_S3_BUCKET_NAME}.s3.${AWS_S3_REGION}.amazonaws.com/${s3Prefix}/index.html`;
 };
@@ -127,7 +145,7 @@ export const runCommandWithStreaming = (command: string, args: string[], deploym
 
         child.stdout.on('data', d => log(d, 'stdout'));
         child.stderr.on('data', d => log(d, 'stderr'));
-        
+
         child.on('close', async (code) => {
             if (allLogs.length) await prisma.deploymentLog.createMany({ data: allLogs }).catch(console.error);
             code === 0 ? resolve(true) : reject(new Error(`Command failed with code ${code}`));

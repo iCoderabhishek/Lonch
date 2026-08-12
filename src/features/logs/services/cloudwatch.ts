@@ -68,8 +68,10 @@ export const getRuntimeLogs = async (req: Request, res: Response, next: NextFunc
 
         // SSE setup
         res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Cache-Control", "no-cache, no-transform");
         res.setHeader("Connection", "keep-alive");
+        res.setHeader("X-Accel-Buffering", "no");
+        res.flushHeaders();
 
         let nextToken: string | undefined = undefined;
         let isConnectionClosed = false;
@@ -97,6 +99,10 @@ export const getRuntimeLogs = async (req: Request, res: Response, next: NextFunc
                 for (const event of events) {
                     if (event.message) {
                         res.write(`data: ${event.message}\n\n`);
+                        // Force flush if compression middleware is used
+                        if (typeof (res as any).flush === 'function') {
+                            (res as any).flush();
+                        }
                     }
                 }
 
@@ -112,6 +118,12 @@ export const getRuntimeLogs = async (req: Request, res: Response, next: NextFunc
             }
 
             await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Send heartbeat to prevent ALB 60s idle timeout drop
+            res.write(':\\n\\n');
+            if (typeof (res as any).flush === 'function') {
+                (res as any).flush();
+            }
         }
 
     } catch (error) {

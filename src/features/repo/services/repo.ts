@@ -128,7 +128,13 @@ export const getCommits = async (req: Request, res: Response, next: NextFunction
         }));
 
         res.json({ commits });
-    } catch (error) {
+    } catch (error: any) {
+        if (error.response?.status === 404) {
+            return res.status(404).json({ error: "Repository or branch not found on GitHub." });
+        }
+        if (error.response?.status === 409) {
+            return res.status(409).json({ error: "Repository is empty." });
+        }
         console.error("GitHub commits error:", error);
         next(error);
     }

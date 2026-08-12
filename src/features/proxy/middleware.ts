@@ -1,15 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
 import { proxyRequest } from "./services/proxy";
+import { DEPLOYMENT_DOMAIN } from "../../shared/libs/env-lib";
+
 
 export const proxyInterceptor = (req: Request, res: Response, next: NextFunction) => {
     const host = req.hostname;
-    if (host === "api.lonch.0bhishek.com" || host === "api.localhost") {
+    // Core domains that should bypass the proxy
+    if (host === `api.${DEPLOYMENT_DOMAIN}` || host === "api.localhost" || host === "localhost" || host === "lonch-fe-abhishek.loca.lt") {
         return next();
     }
 
-    if (host.endsWith(".lonch.0bhishek.com") || host.endsWith(".localhost")) {
-        return proxyRequest(req, res, next);
-    }
-
-    next();
+    // Anything else is treated as a project request (subdomain or custom domain)
+    return proxyRequest(req, res, next);
 };

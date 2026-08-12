@@ -12,7 +12,8 @@ export async function getProjects(req: Request, res: Response, next: NextFunctio
 
         const projects = await prisma.project.findMany({
             where: {
-                ownerId: userId
+                ownerId: userId,
+                disabled: false
             },
             include: {
                 deployments: {
@@ -51,7 +52,8 @@ export async function getProjectById(req: Request, res: Response, next: NextFunc
         const project = await prisma.project.findFirst({
             where: {
                 slug,
-                ownerId: userId
+                ownerId: userId,
+                disabled: false
             },
             include: {
                 deployments: {
