@@ -59,35 +59,30 @@ Lonch is designed around a decoupled micro-architecture pattern that separates t
 - **Message Queue**: BullMQ
 - **Infrastructure Integrations**: Docker, AWS SDK (ECR, ECS, ALB, S3, ACM, CloudWatch)
 
-## Local Development Setup
+## Run with Docker
+
+You can easily spin up the entire backend platform, including PostgreSQL, Redis, and the Node.js Workers using Docker Compose.
 
 ### Prerequisites
-- Node.js (v20+) or Bun (v1+)
 - Docker & Docker Compose
-- PostgreSQL & Redis
 - AWS Account with appropriate IAM permissions
 
-### Installation
+### Installation & Execution
 
 1. **Clone the repository**
    ```bash
    git clone https://github.com/iCoderabhishek/Lonch.git
    cd Lonch
-   bun install
    ```
 
 2. **Environment Configuration**
-   Create a `.env` file in the root directory and configure your Database, Redis, and AWS credentials. See `.env.example` for required fields.
+   Create a `.env` file in the root directory and configure your AWS credentials. See `.env.example` for required fields.
 
-3. **Start the Infrastructure**
+3. **Start the Platform**
    ```bash
-   docker-compose up -d
+   docker compose up --build -d
    ```
-
-4. **Start the Server & Workers**
-   ```bash
-   bun run dev
-   ```
+   This will automatically spin up the database, cache, proxy, and background workers in isolated containers.
 
 ## Contribution
 
