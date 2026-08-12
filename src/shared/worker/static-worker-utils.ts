@@ -11,6 +11,7 @@ import { AWS_S3_REGION, AWS_S3_BUCKET_NAME } from "../libs/env-lib";
 import fs from "fs/promises";
 import { ApiError } from "../libs/error";
 import { workerLog } from "./logger";
+import { getInstallationToken } from "../libs/github";
 
 const execFileAsync = promisify(execFile);
 
@@ -18,7 +19,8 @@ export const getProjectForDeploy = async (projectId: string, expectedType: strin
     const project = await prisma.project.findUnique({
         where: { id: projectId },
         include: {
-            envVars: true
+            envVars: true,
+            owner: true
         }
     });
     if (!project) throw new ApiError(404, "Project not found");
@@ -31,20 +33,33 @@ export const getProjectForDeploy = async (projectId: string, expectedType: strin
     return project;
 };
 
-export const cloneRepository = async (repoUrl: string, deploymentId: string, branch: string = "main") => {
+export const cloneRepository = async (project: any, deploymentId: string) => {
     const tempDir = path.resolve("/tmp/builds", deploymentId);
+    const branch = project.branch || "main";
 
     // Ensure clean state before cloning
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { });
 
-    await workerLog(deploymentId, `Cloning repository: ${repoUrl} (branch: ${branch}) into ${tempDir}...`);
+    let cloneUrl = project.repoUrl;
+    if (project.owner?.githubInstallationId) {
+        try {
+            const token = await getInstallationToken(project.owner.githubInstallationId);
+            // Insert token into the GitHub URL
+            cloneUrl = project.repoUrl.replace("https://", `https://x-access-token:${token}@`);
+        } catch (err) {
+            console.error("Failed to get installation token for clone:", err);
+            // fallback to public url
+        }
+    }
+
+    await workerLog(deploymentId, `Cloning repository: ${project.repoUrl} (branch: ${branch}) into ${tempDir}...`);
     try {
-        await execFileAsync('git', ['clone', '--single-branch', '--branch', branch, repoUrl, tempDir]);
+        await execFileAsync('git', ['clone', '--single-branch', '--branch', branch, cloneUrl, tempDir]);
     } catch (error: any) {
         if (error.stderr && error.stderr.includes(`Remote branch ${branch} not found`)) {
             await workerLog(deploymentId, `Branch '${branch}' not found. Falling back to the repository's default branch...`, "stderr");
             await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { }); // cleanup again just in case
-            await execFileAsync('git', ['clone', '--single-branch', repoUrl, tempDir]);
+            await execFileAsync('git', ['clone', '--single-branch', cloneUrl, tempDir]);
         } else {
             throw error;
         }
