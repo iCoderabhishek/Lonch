@@ -41,7 +41,8 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
 
             if (!albProxy) {
                 albProxy = createProxyMiddleware({
-                    target: `http://${AWS_ALB_DNS_NAME}`,
+                    target: `https://${AWS_ALB_DNS_NAME}`,
+                    secure: false, // Must ignore SSL verification since we are calling ALB by its raw DNS instead of the ACM certificate domain
                     changeOrigin: true,
                     ws: true,
                     on: {
