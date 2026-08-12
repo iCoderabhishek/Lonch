@@ -1,48 +1,96 @@
-# Lonch - Cloud Deployment Platform
+# Lonch Platform (Backend & Control Plane)
 
-This project is a cloud deployment platform allowing users to deploy static and backend applications seamlessly.
+The official backend and deployment control plane for Lonch, a high-performance Platform as a Service (PaaS) designed for seamless application hosting. This repository manages dynamic infrastructure provisioning, zero-config deployment pipelines, and intelligent traffic routing to AWS services.
 
-## 🚀 Completed: Static Site Deployments
-The pipeline for deploying static sites is fully functional. The architecture includes:
-- **Repository Integration:** Automated cloning of user repositories.
-- **Containerized Builds:** Isolated, secure Docker containers execute the build step (e.g., `npm run build`).
-- **Live Log Streaming:** Real-time build logs broadcasted via **Redis Pub/Sub** and served to the frontend using **Server-Sent Events (SSE)**.
-- **Asset Storage:** Compiled static assets (HTML/JS/CSS) are automatically uploaded to an **AWS S3 Bucket**.
-- **Custom Routing:** A **Caddy Reverse Proxy** handles on-demand wildcard domain routing (e.g., `*.lonch.com`) to the S3 static hosting endpoint.
+<video src="[INSERT_VIDEO_URL_HERE]" 
+   width="100%" autoplay loop muted playsinline></video>
 
-## 🏗️ Next Phase: Backend Deployments (AWS ECS)
-We are now moving towards supporting long-lived backend applications (Node.js, Python, Go, etc.). The planned architectural flow is:
+## Links
 
-1. **Project Configuration:** Users will define required Environment Variables and Exposed Ports.
-2. **Build Phase (Worker):** 
-   - Clone the repository.
-   - Generate a Dockerfile (if missing) and execute `docker build`.
-   - Authenticate and `docker push` the image to **AWS ECR (Elastic Container Registry)**.
-3. **Deploy Phase (Provisioning):**
-   - Create/Update an **AWS ECS Task Definition** pointing to the new ECR image, mapping ports, and injecting secrets.
-   - Update the **AWS ECS Service** (`ecsServiceArn`) to trigger a rolling deployment of the new container.
-4. **Routing:** Caddy will route wildcard requests for backend projects to the AWS Application Load Balancer (ALB) fronting the ECS tasks.
-5. **Persistent Logs:** Application logs will be continuously streamed from AWS CloudWatch.
+- **Live Platform**: https://lonch.cloud/
+- **Frontend Repository**: https://github.com/iCoderabhishek/client-lonch
+- **Video Walkthrough**: https://www.youtube.com/@0bhishekk
 
-To handle multiple concurrent users and prevent memory crashes during resource-intensive build steps, the recommended production architecture utilizes the following AWS services:
+## Why Lonch?
 
-1. **Build Execution (AWS CodeBuild):** Replaces local `docker build` processes. It automatically spins up isolated virtual machines for each build, allowing infinite concurrency without crashing the host server.
-2. **API & Worker Hosting (AWS ECS with Fargate):** Replaces fixed-size VPS instances. It provides serverless container hosting that automatically scales out during traffic spikes and scales back down to save costs.
-3. **Queue / BullMQ (Amazon ElastiCache):** A fully managed Redis service that acts as the central, reliable queue for multiple distributed worker instances.
-4. **Database (Amazon RDS):** A fully managed relational database (e.g., PostgreSQL/MySQL) for reliable data storage and automated backups.
+While massive platforms like Vercel or Render exist, Lonch is purpose-built to address the complexities of provisioning isolated AWS resources (ECS, ALB, ECR, S3) dynamically from a centralized control plane. It serves as a comprehensive demonstration of how to build a scalable, multi-tenant PaaS, complete with automated Docker builds, background workers, zero-downtime deployments, and real-time Server-Sent Events (SSE) log streaming.
 
----
+## Architecture & Data Flow
 
-### Local Development
+Lonch is designed around a decoupled micro-architecture pattern that separates the main REST API from computationally heavy deployment tasks and dynamic proxy routing.
 
-To install dependencies:
-```bash
-bun install
-```
+![Architecture Diagram](assets/diagram/architecture.png)
 
-To run the API server:
-```bash
-bun run index.ts
-```
+1. **Authentication & API**: The user interacts with the Express API to manage their projects, domains, and configurations. Data is stored securely in PostgreSQL using Prisma.
+2. **Deployment Pipeline (BullMQ + Redis)**: 
+   - When a user triggers a deployment, the API pushes a job to a Redis queue.
+   - Background workers (static or backend) pick up the job, clone the GitHub repository, and automatically infer the correct language, framework, and build commands (Zero-config deployment).
+3. **Infrastructure Provisioning**:
+   - **Static Sites**: The worker builds the site using a temporary Docker container and uploads the compiled assets directly to AWS S3.
+   - **Backend Apps**: The worker builds a Docker image, pushes it to AWS ECR, provisions an ALB Target Group, and registers a new AWS ECS Fargate task definition.
+4. **Dynamic Proxy Routing**:
+   - All incoming traffic to `*.lonch.cloud` hits the custom Lonch proxy middleware.
+   - The proxy dynamically queries the database and forwards requests to the appropriate S3 bucket (for static sites) or AWS ALB (for backend apps), managing custom domains and HTTPS offloading seamlessly.
+5. **Real-time Log Streaming**: Build logs are broadcast line-by-line via Redis Pub/Sub and pushed to the frontend client using Server-Sent Events (SSE).
 
-This project was created using `bun init` in bun v1.3.0. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## Technical Decisions & Tradeoffs
+
+- **Background Workers (BullMQ + Redis)**: 
+  - *Decision*: Decouple heavy workloads (Docker builds, AWS API calls) from the main request-response lifecycle.
+  - *Tradeoff*: Introduces infrastructure overhead (requires Redis), but ensures the control plane API remains fast, highly available, and capable of concurrent deployments.
+- **Dynamic Proxy Middleware**: 
+  - *Decision*: Route all user traffic through a single Node.js proxy to resolve custom domains and route to ALB/S3 dynamically.
+  - *Tradeoff*: Acts as a potential bottleneck if not scaled properly, but allows for infinite flexibility in managing custom subdomains without manually updating DNS records for every user.
+- **Zero-Config Auto-Detector**: 
+  - *Decision*: Automatically inspect cloned repositories to infer base Docker images and build commands.
+  - *Tradeoff*: Increases worker complexity, but provides a "Vercel-like" frictionless developer experience.
+
+## Tech Stack
+
+- **Runtime**: Node.js / Bun
+- **Language**: TypeScript
+- **Framework**: Express.js
+- **Database**: PostgreSQL (Prisma ORM), Redis
+- **Message Queue**: BullMQ
+- **Infrastructure Integrations**: Docker, AWS SDK (ECR, ECS, ALB, S3, ACM, CloudWatch)
+
+## Local Development Setup
+
+### Prerequisites
+- Node.js (v20+) or Bun (v1+)
+- Docker & Docker Compose
+- PostgreSQL & Redis
+- AWS Account with appropriate IAM permissions
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/iCoderabhishek/Lonch.git
+   cd Lonch
+   bun install
+   ```
+
+2. **Environment Configuration**
+   Create a `.env` file in the root directory and configure your Database, Redis, and AWS credentials. See `.env.example` for required fields.
+
+3. **Start the Infrastructure**
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **Start the Server & Workers**
+   ```bash
+   bun run dev
+   ```
+
+## Contribution
+
+Contributions are always welcome! Since this is a complex infrastructure-heavy project:
+1. Ensure you understand the deployment pipelines before modifying the background workers.
+2. Test any changes locally using Docker to simulate backend builds.
+3. Open a Pull Request with a clear description of the feature or fix.
+
+## License
+
+This project is licensed under the MIT License.
