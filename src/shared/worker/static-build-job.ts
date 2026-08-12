@@ -11,11 +11,12 @@ import {
     uploadStaticAssetsToS3,
     cleanupResources
 } from "./static-worker-utils";
+import { workerLog } from "./logger";
 
 export const staticDeployWorker = new Worker(
     "static-build",
     async (job) => {
-        console.log(`[Worker] Started processing job for deployment: ${job.data.deploymentId}`);
+        await workerLog(job.data.deploymentId, `Started processing job for deployment: ${job.data.deploymentId}`);
         const { deploymentId, projectId } = job.data;
         let tempDir = "";
         let container: Docker.Container | undefined;
@@ -29,7 +30,7 @@ export const staticDeployWorker = new Worker(
             tempDir = await cloneRepository(project.repoUrl, deploymentId, project.branch);
 
             // 2. Build Container & Stream Logs
-            container = await createAndStartContainer(project, tempDir);
+            container = await createAndStartContainer(project, tempDir, deploymentId);
             const allLogs = await streamLogsToRedisAndDB(container, deploymentId);
             await waitForContainerSuccess(container, allLogs);
 

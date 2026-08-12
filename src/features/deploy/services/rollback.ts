@@ -86,7 +86,7 @@ export const rollbackDeployment = async (req: Request, res: Response, next: Next
             });
 
             // Trigger the AWS ECS update directly since it's instantaneous to trigger
-            await updateExistingEcsService(project, targetDeployment.imageUri, appPort);
+            await updateExistingEcsService(project, targetDeployment.imageUri, appPort, newDeployment.id);
 
             return res.json({ 
                 message: "Rollback triggered successfully. Containers are restarting with the previous image.", 

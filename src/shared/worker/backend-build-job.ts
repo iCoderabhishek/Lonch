@@ -8,13 +8,14 @@ import { execFile } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 import { authenticateECR, ensureEcrRepositoryExists, provisionNewEcsService, updateExistingEcsService, waitForEcsService } from "./aws-backend-utils";
+import { workerLog } from "./logger";
 
 const execFileAsync = promisify(execFile);
 
 export const backendDeployWorker = new Worker(
     "backend-build",
     async (job) => {
-        console.log(`[Worker] Started processing job for deployment: ${job.data.deploymentId}`);
+        await workerLog(job.data.deploymentId, `Started processing job for deployment: ${job.data.deploymentId}`);
         const { deploymentId, projectId } = job.data;
         let tempDir = "";
         try {
@@ -44,50 +45,50 @@ export const backendDeployWorker = new Worker(
             }
             const imageTag = `${AWS_ECR_REPOSITORY_URI}:${deploymentId}`;
 
-            console.log(`[Worker] Building Docker image...`);
+            await workerLog(deploymentId, `Building Docker image...`);
             await runCommandWithStreaming('docker', [
                 "build", "-t", imageTag, "--no-cache", tempDir,
             ], deploymentId, tempDir);
-            console.log(`[Worker] Image built successfully: ${imageTag}`);
+            await workerLog(deploymentId, `Image built successfully: ${imageTag}`);
 
             // 3. push image to ECR
 
 
-            await ensureEcrRepositoryExists();
-            await authenticateECR();
+            await ensureEcrRepositoryExists(deploymentId);
+            await authenticateECR(deploymentId);
 
-            console.log(`[Worker] Pushing image to ECR...`);
+            await workerLog(deploymentId, `Pushing image to ECR...`);
             await updateDeploymentStatus(deploymentId, "PUSHING", { imageUri: imageTag });
             await runCommandWithStreaming('docker', ['push', imageTag], deploymentId, tempDir);
-            console.log(`[Worker] Image pushed successfully`);
+            await workerLog(deploymentId, `Image pushed successfully`);
 
             const appPort = project.port || 3000;
 
             if (!project.ecsServiceArn) {
-                await provisionNewEcsService(project, imageTag, appPort);
+                await provisionNewEcsService(project, imageTag, appPort, deploymentId);
             } else {
                 try {
-                    await updateExistingEcsService(project, imageTag, appPort);
+                    await updateExistingEcsService(project, imageTag, appPort, deploymentId);
                 } catch (updateErr: any) {
-                    console.error(`[Worker] Failed to update existing ECS service (${updateErr.message}). The saved ARN might be invalid or deleted. Falling back to provisioning a new service...`);
-                    await provisionNewEcsService(project, imageTag, appPort);
+                    await workerLog(deploymentId, `Failed to update existing ECS service (${updateErr.message}). The saved ARN might be invalid or deleted. Falling back to provisioning a new service...`);
+                    await provisionNewEcsService(project, imageTag, appPort, deploymentId);
                 }
             }
 
             // 4. update deployment status
 
-            console.log(`[Worker] ECS update triggered. Marking deployment as SUCCESS.`);
+            await workerLog(deploymentId, `ECS update triggered. Marking deployment as SUCCESS.`);
             await updateDeploymentStatus(deploymentId, "SUCCESS");
             
             // Note: We bypassed ECS stable wait and marked as SUCCESS immediately as requested.
             // When AWS finishes the deployment in a few minutes, it will be fully live.
             
-            console.log(`\n======================================================`);
-            console.log(`🚀 DEPLOYMENT TRIGGERED SUCCESSFULLY!`);
-            console.log(`AWS is now spinning up your containers in the background.`);
-            console.log(`🌍 Production: https://${project.slug}.lonch.cloud`);
-            console.log(`💻 Local Test: http://${project.slug}.localhost:8080`);
-            console.log(`======================================================\n`);
+            await workerLog(deploymentId, `\n======================================================\n` +
+                                          `🚀 DEPLOYMENT TRIGGERED SUCCESSFULLY!\n` +
+                                          `AWS is now spinning up your containers in the background.\n` +
+                                          `🌍 Production: https://${project.slug}.lonch.cloud\n` +
+                                          `💻 Local Test: http://${project.slug}.localhost:8080\n` +
+                                          `======================================================\n`);
 
         } catch (error: any) {
             console.error(`[Worker Error]:`, error);

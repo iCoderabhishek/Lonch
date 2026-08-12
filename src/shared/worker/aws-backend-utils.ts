@@ -36,6 +36,7 @@ import {
 import { prisma } from "../libs/prisma";
 import { promisify } from "util";
 import { execFile } from "child_process";
+import { workerLog } from "./logger";
 
 const execFileAsync = promisify(execFile);
 
@@ -45,8 +46,8 @@ const albClient = new ElasticLoadBalancingV2Client({ region: ecrRegion });
 const ecrClient = new ECRClient({ region: ecrRegion });
 const cloudwatchClient = new CloudWatchLogsClient({ region: ecrRegion });
 
-export async function authenticateECR() {
-    console.log(`[Worker] Authenticating with AWS ECR...`);
+export async function authenticateECR(deploymentId: string) {
+    await workerLog(deploymentId, `Authenticating with AWS ECR...`);
     const authResponse = await ecrClient.send(new GetAuthorizationTokenCommand({}));
     const authData = authResponse.authorizationData?.[0];
     if (!authData || !authData.authorizationToken) {
@@ -62,8 +63,8 @@ export async function authenticateECR() {
         const { spawn } = require('child_process');
         const child = spawn('docker', ['login', '--username', username as string, '--password-stdin', registryUrl]);
         
-        child.stdout.on('data', (data: Buffer) => console.log(`[Docker Login] ${data.toString().trim()}`));
-        child.stderr.on('data', (data: Buffer) => console.error(`[Docker Login Error] ${data.toString().trim()}`));
+        child.stdout.on('data', (data: Buffer) => workerLog(deploymentId, `[Docker Login] ${data.toString().trim()}`));
+        child.stderr.on('data', (data: Buffer) => workerLog(deploymentId, `[Docker Login Error] ${data.toString().trim()}`));
         
         child.on('close', (code: number) => {
             if (code === 0) resolve();
@@ -75,7 +76,7 @@ export async function authenticateECR() {
     });
 }
 
-export async function ensureEcrRepositoryExists() {
+export async function ensureEcrRepositoryExists(deploymentId: string) {
     if (!AWS_ECR_REPOSITORY_URI) return;
     const repoName = AWS_ECR_REPOSITORY_URI.split('/').slice(1).join('/');
     
@@ -83,25 +84,25 @@ export async function ensureEcrRepositoryExists() {
         await ecrClient.send(new DescribeRepositoriesCommand({ repositoryNames: [repoName] }));
     } catch (err: any) {
         if (err.name === 'RepositoryNotFoundException') {
-            console.log(`[Worker] ECR Repository '${repoName}' not found. Creating it...`);
+            await workerLog(deploymentId, `ECR Repository '${repoName}' not found. Creating it...`);
             await ecrClient.send(new CreateRepositoryCommand({ repositoryName: repoName }));
-            console.log(`[Worker] ECR Repository '${repoName}' created successfully.`);
+            await workerLog(deploymentId, `ECR Repository '${repoName}' created successfully.`);
         } else {
             throw err;
         }
     }
 }
 
-async function ensureCloudwatchLogGroupExists(slug: string) {
+async function ensureCloudwatchLogGroupExists(slug: string, deploymentId: string) {
     const logGroupName = `/ecs/lonch-${slug}`;
     try {
         await cloudwatchClient.send(new CreateLogGroupCommand({ logGroupName }));
-        console.log(`[Worker] Created CloudWatch Log Group: ${logGroupName}`);
+        await workerLog(deploymentId, `Created CloudWatch Log Group: ${logGroupName}`);
     } catch (err: any) {
         if (err.name === 'ResourceAlreadyExistsException') {
             // Already exists, ignore
         } else {
-            console.error(`[Worker Warning] Failed to pre-create log group ${logGroupName}:`, err.message);
+            await workerLog(deploymentId, `Warning: Failed to pre-create log group ${logGroupName}: ${err.message}`, "stderr");
         }
     }
 }
@@ -119,13 +120,13 @@ function checkEnvVar(project: any, appPort: number) {
     return awsEnvVars;
 }
 
-export async function provisionNewEcsService(project: any, imageTag: string, appPort: number): Promise<string> {
+export async function provisionNewEcsService(project: any, imageTag: string, appPort: number, deploymentId: string): Promise<string> {
 
-    console.log(`[Worker] No ECS Service found for project. Provisioning new ALB Target Group and ECS Service...`);
+    await workerLog(deploymentId, `No ECS Service found for project. Provisioning new ALB Target Group and ECS Service...`);
 
     const envs = checkEnvVar(project, appPort)
 
-    await ensureCloudwatchLogGroupExists(project.slug);
+    await ensureCloudwatchLogGroupExists(project.slug, deploymentId);
 
     // 1. Create Target Group in ALB
     const tgResponse = await albClient.send(new CreateTargetGroupCommand({
@@ -258,19 +259,19 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
         data: { ecsServiceArn: newServiceArn }
     });
 
-    console.log(`[Worker] Successfully provisioned new ECS Service: ${newServiceArn}`);
+    await workerLog(deploymentId, `Successfully provisioned new ECS Service: ${newServiceArn}`);
     return newServiceArn;
 }
 
-export async function updateExistingEcsService(project: any, imageTag: string, appPort: number): Promise<void> {
-    console.log(`[Worker] Updating existing ECS service...`);
+export async function updateExistingEcsService(project: any, imageTag: string, appPort: number, deploymentId: string): Promise<void> {
+    await workerLog(deploymentId, `Updating existing ECS service...`);
 
 
     // code duplication
 
     const envVar = checkEnvVar(project, appPort);
 
-    await ensureCloudwatchLogGroupExists(project.slug);
+    await ensureCloudwatchLogGroupExists(project.slug, deploymentId);
 
     const describeServiceResponse = await ecsClient.send(new DescribeServicesCommand({
         cluster: "lonch-production-cluster",
@@ -332,11 +333,11 @@ export async function updateExistingEcsService(project: any, imageTag: string, a
     );
 }
 
-export async function waitForEcsService(project: any) {
-    console.log(`[Worker] Waiting for ECS service to reach steady state (this usually takes 2-4 minutes)...`);
+export async function waitForEcsService(project: any, deploymentId: string) {
+    await workerLog(deploymentId, `Waiting for ECS service to reach steady state (this usually takes 2-4 minutes)...`);
     await waitUntilServicesStable(
         { client: ecsClient, maxWaitTime: 600 },
         { cluster: "lonch-production-cluster", services: [project.ecsServiceArn] }
     );
-    console.log(`[Worker] ECS service is now completely stable and running!`);
+    await workerLog(deploymentId, `ECS service is now completely stable and running!`);
 }
