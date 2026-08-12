@@ -150,7 +150,7 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
             {
                 Field: "host-header",
                 HostHeaderConfig: {
-                    Values: [`${project.slug}.lonch.0bhishek.com`, `${project.slug}.localhost`]
+                    Values: [`${project.slug}.lonch.cloud`, `${project.slug}.localhost`]
                 }
             }
         ],

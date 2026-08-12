@@ -85,7 +85,7 @@ export const backendDeployWorker = new Worker(
             console.log(`\n======================================================`);
             console.log(`🚀 DEPLOYMENT TRIGGERED SUCCESSFULLY!`);
             console.log(`AWS is now spinning up your containers in the background.`);
-            console.log(`🌍 Production: https://${project.slug}.lonch.0bhishek.com`);
+            console.log(`🌍 Production: https://${project.slug}.lonch.cloud`);
             console.log(`💻 Local Test: http://${project.slug}.localhost:8080`);
             console.log(`======================================================\n`);
 
