@@ -7,8 +7,9 @@ export const getBuildLogs = async (req: Request, res: Response, next: NextFuncti
     // sse headers 
 
     res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders(); // Send headers immediately to establish the SSE connection
 
     const subscriber = redis.duplicate();
@@ -19,10 +20,22 @@ export const getBuildLogs = async (req: Request, res: Response, next: NextFuncti
         if (channel === `deploy-log:${deploymentId}`) {
             console.log(`[SSE] Sending message to ${deploymentId}:`, message.substring(0, 50));
             res.write(`data: ${message}\n\n`);
+            if (typeof (res as any).flush === 'function') {
+                (res as any).flush();
+            }
         }
     });
 
+    // Keep connection alive against ALB 60s idle timeout
+    const keepAliveInterval = setInterval(() => {
+        res.write(':\\n\\n');
+        if (typeof (res as any).flush === 'function') {
+            (res as any).flush();
+        }
+    }, 30000);
+
     req.on("close", async () => {
+        clearInterval(keepAliveInterval);
         await subscriber.unsubscribe();
         await subscriber.quit();
     })
