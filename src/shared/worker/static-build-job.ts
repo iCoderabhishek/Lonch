@@ -11,6 +11,7 @@ import {
     uploadStaticAssetsToS3,
     cleanupResources
 } from "./static-worker-utils";
+import { autoDetectConfig } from "./project-detector";
 import { workerLog } from "./logger";
 
 export const staticDeployWorker = new Worker(
@@ -24,10 +25,13 @@ export const staticDeployWorker = new Worker(
         try {
             await updateDeploymentStatus(deploymentId, "BUILDING");
 
-            const project = await getProjectForDeploy(projectId, "STATIC");
+            let project = await getProjectForDeploy(projectId, "STATIC");
 
             // 1. Clone Repo
             tempDir = await cloneRepository(project, deploymentId);
+            
+            await workerLog(deploymentId, "Auto-detecting project configuration...");
+            project = await autoDetectConfig(tempDir, project);
 
             // 2. Build Container & Stream Logs
             container = await createAndStartContainer(project, tempDir, deploymentId);

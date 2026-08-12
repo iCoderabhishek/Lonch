@@ -86,10 +86,15 @@ export const createAndStartContainer = async (project: Project, tempDir: string,
 
     const workingDir = project.rootDirectory ? path.posix.join("/app", project.rootDirectory) : "/app";
 
+    const cmds = [];
+    if (project.installCommand) cmds.push(project.installCommand);
+    if (project.buildCommand) cmds.push(project.buildCommand);
+    const finalCmd = cmds.length > 0 ? cmds.join(" && ") : "echo 'No commands specified'";
+
     const container = await docker.createContainer({
         Image: buildImage,
         Tty: true,
-        Cmd: ["/bin/sh", "-c", `${project.installCommand} && ${project.buildCommand}`],
+        Cmd: ["/bin/sh", "-c", finalCmd],
         HostConfig: {
             Binds: [`${tempDir}:/app`],
             Memory: Math.max(project.maxMemory || 0, 2560 * 1024 * 1024),

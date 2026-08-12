@@ -5,7 +5,7 @@ import type { Request, Response } from "express";
 
 export async function updateProject(req: Request, res: Response) {
 
-    const { name, repoUrl, type, framework, buildCommand, installCommand, startCommand, outputDirectory, rootDirectory, envVars } = updateProjectSchema.parse(req.body);
+    const { name, repoUrl, type, framework, buildCommand, installCommand, startCommand, outputDirectory, rootDirectory, envVars, baseImage } = updateProjectSchema.parse(req.body);
     const slug = req.params.slug as string;
 
     if (!name || !repoUrl || !slug) {
@@ -44,6 +44,7 @@ export async function updateProject(req: Request, res: Response) {
             startCommand,
             outDirectory: outputDirectory,
             rootDirectory,
+            baseImage,
         }
     });
 

@@ -8,6 +8,7 @@ import { execFile } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 import { authenticateECR, ensureEcrRepositoryExists, provisionNewEcsService, updateExistingEcsService, waitForEcsService } from "./aws-backend-utils";
+import { autoDetectConfig } from "./project-detector";
 import { workerLog } from "./logger";
 
 const execFileAsync = promisify(execFile);
@@ -25,6 +26,9 @@ export const backendDeployWorker = new Worker(
             // 1. clone the repo
 
             tempDir = await cloneRepository(project, deploymentId);
+            
+            await workerLog(deploymentId, "Auto-detecting project configuration...");
+            project = await autoDetectConfig(tempDir, project);
 
             // 2. create dockerfile
 
