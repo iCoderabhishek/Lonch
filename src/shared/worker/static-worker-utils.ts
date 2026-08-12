@@ -38,7 +38,18 @@ export const cloneRepository = async (repoUrl: string, deploymentId: string, bra
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
 
     await workerLog(deploymentId, `Cloning repository: ${repoUrl} (branch: ${branch}) into ${tempDir}...`);
-    await execFileAsync('git', ['clone', '--single-branch', '--branch', branch, repoUrl, tempDir]);
+    try {
+        await execFileAsync('git', ['clone', '--single-branch', '--branch', branch, repoUrl, tempDir]);
+    } catch (error: any) {
+        if (error.stderr && error.stderr.includes(`Remote branch ${branch} not found`)) {
+            await workerLog(deploymentId, `Branch '${branch}' not found. Falling back to the repository's default branch...`, "stderr");
+            await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {}); // cleanup again just in case
+            await execFileAsync('git', ['clone', '--single-branch', repoUrl, tempDir]);
+        } else {
+            throw error;
+        }
+    }
+    
     await workerLog(deploymentId, `Clone completed!`);
     return tempDir;
 };

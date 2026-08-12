@@ -16,9 +16,10 @@ import {
     CloudWatchLogsClient,
     DeleteLogGroupCommand
 } from "@aws-sdk/client-cloudwatch-logs";
-import { DeleteObjectsCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { s3 } from "../libs/s3";
 import { AWS_ECR_REPOSITORY_URI, AWS_ECR_REGION } from "../libs/env-lib";
+import { prisma } from "../libs/prisma";
 
 const ecrRegion = AWS_ECR_REPOSITORY_URI ? AWS_ECR_REPOSITORY_URI.split('.')[3] : AWS_ECR_REGION;
 const ecsClient = new ECSClient({ region: ecrRegion });
@@ -48,12 +49,14 @@ export const teardownWorker = new Worker(
                     }));
 
                     if (listRes.Contents && listRes.Contents.length > 0) {
-                        const objectsToDelete = listRes.Contents.map((obj: any) => ({ Key: obj.Key }));
-                        await s3.send(new DeleteObjectsCommand({
-                            Bucket: AWS_S3_BUCKET_NAME,
-                            Delete: { Objects: objectsToDelete }
-                        }));
-                        console.log(`[Teardown Worker] Deleted ${objectsToDelete.length} objects from S3.`);
+                        const deletePromises = listRes.Contents.map((obj: any) => 
+                            s3.send(new DeleteObjectCommand({
+                                Bucket: AWS_S3_BUCKET_NAME,
+                                Key: obj.Key
+                            }))
+                        );
+                        await Promise.all(deletePromises);
+                        console.log(`[Teardown Worker] Deleted ${listRes.Contents.length} objects from S3.`);
                     }
 
                     isTruncated = listRes.IsTruncated ?? false;
@@ -137,6 +140,16 @@ export const teardownWorker = new Worker(
         }
         
         console.log(`[Teardown Worker] Teardown complete for project ${slug}.`);
+        
+        // 4. Finally, fully delete the project from the database
+        try {
+            await prisma.project.delete({
+                where: { id: projectId }
+            });
+            console.log(`[Teardown Worker] Project ${slug} fully deleted from database.`);
+        } catch (err: any) {
+            console.error(`[Teardown Worker] Error deleting project from database:`, err.message);
+        }
     },
     { connection: { url: REDIS_URL } }
 );
