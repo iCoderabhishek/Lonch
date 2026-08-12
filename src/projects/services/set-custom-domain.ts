@@ -6,7 +6,7 @@ export const setCustomDomain = async (req: Request, res: Response) => {
         const slug = req.params.slug as string;
         const { domain } = req.body;
         // @ts-ignore - req.user is populated by authMiddleware
-        const userId = req.user?.id; 
+        const userId = req.user?.userId; 
 
         if (!domain) {
             return res.status(400).json({ error: "Domain is required" });

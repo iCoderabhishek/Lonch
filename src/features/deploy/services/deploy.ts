@@ -20,7 +20,7 @@ export const deploy = async (req: Request, res: Response, next: NextFunction) =>
         const project = await prisma.project.findUnique({
             where: { id: projectId }
         })
-        if (!project) {
+        if (!project || project.disabled) {
             return res.status(404).json({ message: "Project not found" })
         }
         // repoUrl is optional for repeat deployments; use stored value if not provided

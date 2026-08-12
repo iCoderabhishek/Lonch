@@ -7,7 +7,7 @@ export const getRollbackEligibility = async (req: Request, res: Response, next: 
     try {
         const slug = req.params.slug as string;
         const project = await prisma.project.findFirst({
-            where: { slug, ownerId: req.user.userId }
+            where: { slug, ownerId: req.user.userId, disabled: false }
         });
 
         if (!project) {
@@ -43,8 +43,8 @@ export const rollbackDeployment = async (req: Request, res: Response, next: Next
             return next(ApiError.notFound("Deployment not found"));
         }
         
-        if (!targetDeployment.project || targetDeployment.project.ownerId !== req.user.userId) {
-            return next(ApiError.forbidden("You do not own this project"));
+        if (!targetDeployment.project || targetDeployment.project.ownerId !== req.user.userId || targetDeployment.project.disabled) {
+            return next(ApiError.forbidden("You do not own this project or it has been deleted"));
         }
 
         if (targetDeployment.status !== "SUCCESS") {

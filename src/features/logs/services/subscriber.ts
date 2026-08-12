@@ -8,6 +8,17 @@ export interface FlushableResponse extends Response {
 
 export const getBuildLogs = async (req: Request, res: FlushableResponse, next: NextFunction) => {
     const deploymentId = req.params.deploymentId as string;
+    
+    const deploymentCheck = await prisma.deployment.findUnique({
+        where: { id: deploymentId },
+        include: { project: true }
+    });
+    
+    // @ts-ignore
+    if (!deploymentCheck || deploymentCheck.project.ownerId !== req.user?.userId) {
+        res.status(404).json({ error: "Deployment not found" });
+        return;
+    }
 
     // sse headers 
     res.setHeader("Content-Type", "text/event-stream");
@@ -82,6 +93,15 @@ export const getBuildLogs = async (req: Request, res: FlushableResponse, next: N
 export const getStoredBuildLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const deploymentId = req.params.deploymentId as string;
+        
+        const deployment = await prisma.deployment.findUnique({
+            where: { id: deploymentId },
+            include: { project: true }
+        });
+        
+        if (!deployment || deployment.project.ownerId !== req.user.userId) {
+            return res.status(404).json({ error: "Deployment not found" });
+        }
 
         const logs = await prisma.deploymentLog.findMany({
             where: { deploymentId },

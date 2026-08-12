@@ -11,9 +11,15 @@ export const getRuntimeLogs = async (req: Request, res: Response, next: NextFunc
     const projectId = req.params.projectId as string;
 
     try {
-        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        const project = await prisma.project.findFirst({ 
+            where: { 
+                id: projectId,
+                ownerId: req.user.userId,
+                disabled: false
+            } 
+        });
         if (!project || !project.ecsServiceArn) {
-            return res.status(404).json({ error: "Project or ECS Service not found" });
+            return res.status(404).json({ error: "Project not found or not deployed" });
         }
 
         // 1. Get running tasks for the service

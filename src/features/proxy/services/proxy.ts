@@ -25,7 +25,7 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
         console.log(`[Proxy] Incoming request for host: ${host} | File: ${req.path}`);
 
         const project = await prisma.project.findFirst({
-            where: isCustomDomain ? { customDomain: host } : { slug },
+            where: isCustomDomain ? { customDomain: host, disabled: false } : { slug, disabled: false },
             include: { owner: true }
         });
 

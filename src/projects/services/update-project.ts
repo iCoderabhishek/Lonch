@@ -21,7 +21,8 @@ export async function updateProject(req: Request, res: Response) {
     const existingProject = await prisma.project.findFirst({
         where: {
             ownerId: userId,
-            slug
+            slug,
+            disabled: false
         }
     });
 

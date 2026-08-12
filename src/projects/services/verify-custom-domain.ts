@@ -12,7 +12,7 @@ export const verifyCustomDomain = async (req: Request, res: Response) => {
     try {
         const slug = req.params.slug as string;
         // @ts-ignore
-        const userId = req.user?.id; 
+        const userId = req.user?.userId; 
 
         const project = await prisma.project.findUnique({ where: { slug } });
 
