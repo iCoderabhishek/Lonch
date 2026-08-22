@@ -63,6 +63,8 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
         let filePath = req.path;
         if (!filePath || filePath === "/") {
             filePath = "/index.html";
+        } else if (filePath.endsWith("/")) {
+            filePath = filePath + "index.html";
         }
         filePath = filePath.replace(/^\/+/, "");
 
