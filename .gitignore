@@ -23,7 +23,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .env.local
 .env.development
 .env.production
-
+.env.migrate
 # caches
 .eslintcache
 .cache
