@@ -22,17 +22,22 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
             isCustomDomain = true;
         }
 
-        console.log(`[Proxy] Incoming request for host: ${host} | File: ${req.path}`);
-
         const project = await prisma.project.findFirst({
             where: isCustomDomain ? { customDomain: host, disabled: false } : { slug, disabled: false },
             include: { owner: true }
         });
 
+        // Expanded list of common bot scan paths to keep your logs clean
+        const isBotScan = req.path.includes('.env') || req.path.includes('.php') || req.path.includes('.json') || req.path.includes('.axd') || req.path.includes('/actuator') || req.path.includes('/.vscode') || req.path.includes('/.well-known') || /^[\d.]+$/.test(host);
+
         if (!project) {
-            console.log(`[Proxy] Project not found for host: ${host}`);
+            if (!isBotScan) {
+                console.log(`[Proxy] 404 Project not found: ${host} | File: ${req.path}`);
+            }
             return res.status(404).send("Project not found");
         }
+
+        console.log(`[Proxy] Incoming request for host: ${host} | File: ${req.path}`);
 
         if (project.type === "BACKEND") {
             if (!AWS_ALB_DNS_NAME) {
