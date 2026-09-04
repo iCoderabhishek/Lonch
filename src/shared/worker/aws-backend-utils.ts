@@ -6,8 +6,15 @@ import {
     RegisterTaskDefinitionCommand,
     CreateServiceCommand,
     AssignPublicIp,
-    waitUntilServicesStable
+    waitUntilServicesStable,
+    ListTasksCommand,
+    DescribeTasksCommand
 } from "@aws-sdk/client-ecs";
+import {
+    EC2Client,
+    DescribeNetworkInterfacesCommand
+} from "@aws-sdk/client-ec2";
+import axios from "axios";
 import {
     ECRClient,
     GetAuthorizationTokenCommand,
@@ -33,7 +40,9 @@ import {
     AWS_ECS_EXECUTION_ROLE_ARN,
     AWS_ECR_REPOSITORY_URI,
     AWS_S3_ACCESS_KEY_ID,
-    AWS_S3_SECRET_ACCESS_KEY
+    AWS_S3_SECRET_ACCESS_KEY,
+    CLOUDFLARE_API_TOKEN,
+    CLOUDFLARE_ZONE_ID
 } from "../libs/env-lib";
 import { prisma } from "../libs/prisma";
 import { promisify } from "util";
@@ -56,6 +65,84 @@ const ecsClient = new ECSClient(awsConfig);
 const albClient = new ElasticLoadBalancingV2Client(awsConfig);
 const ecrClient = new ECRClient(awsConfig);
 const cloudwatchClient = new CloudWatchLogsClient(awsConfig);
+const ec2Client = new EC2Client(awsConfig);
+
+// Helper to poll for a running task and get its Public IP (<60s)
+async function getTaskPublicIp(cluster: string, serviceName: string, deploymentId: string): Promise<string> {
+    await workerLog(deploymentId, "Polling for new Fargate task to reach RUNNING state...");
+    
+    let taskArn: string | undefined;
+    for (let i = 0; i < 30; i++) { // wait up to 60s
+        const listRes = await ecsClient.send(new ListTasksCommand({ cluster, serviceName }));
+        if (listRes.taskArns && listRes.taskArns.length > 0) {
+            taskArn = listRes.taskArns[0];
+            break;
+        }
+        await new Promise(r => setTimeout(r, 2000));
+    }
+    if (!taskArn) throw new Error("No task spun up within 60 seconds");
+
+    let eniId: string | undefined;
+    for (let i = 0; i < 45; i++) { // wait up to 90s for RUNNING state
+        const descRes = await ecsClient.send(new DescribeTasksCommand({ cluster, tasks: [taskArn] }));
+        const task = descRes.tasks?.[0];
+        if (task && task.lastStatus === "RUNNING") {
+            const eniAttachment = task.attachments?.find(a => a.type === "ElasticNetworkInterface");
+            const eniDetail = eniAttachment?.details?.find(d => d.name === "networkInterfaceId");
+            if (eniDetail && eniDetail.value) {
+                eniId = eniDetail.value;
+                break;
+            }
+        } else if (task && task.lastStatus === "STOPPED") {
+            throw new Error(`Task stopped unexpectedly: ${task.stoppedReason}`);
+        }
+        await new Promise(r => setTimeout(r, 2000));
+    }
+    if (!eniId) throw new Error("Task did not reach RUNNING state in time or ENI not found");
+
+    const eniRes = await ec2Client.send(new DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
+    const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
+    if (!publicIp) throw new Error("No Public IP found for task ENI");
+
+    await workerLog(deploymentId, `Task reached RUNNING state. Extracted Public IP: ${publicIp}`);
+    return publicIp;
+}
+
+// Helper to update Cloudflare DNS
+async function updateCloudflareDNS(slug: string, ip: string, deploymentId: string) {
+    if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ZONE_ID) {
+        await workerLog(deploymentId, "WARNING: Cloudflare credentials not set, skipping DNS update.", "stderr");
+        return;
+    }
+    await workerLog(deploymentId, `Updating Cloudflare DNS for ${slug}.lonch.cloud -> ${ip}...`);
+    
+    const headers = {
+        "Authorization": `Bearer ${CLOUDFLARE_API_TOKEN}`,
+        "Content-Type": "application/json"
+    };
+    
+    // Check if record exists
+    const searchRes = await axios.get(`https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${slug}.lonch.cloud`, { headers });
+    const records = searchRes.data.result;
+    
+    if (records && records.length > 0) {
+        const recordId = records[0].id;
+        await axios.put(`https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${recordId}`, {
+            type: "A",
+            name: `${slug}.lonch.cloud`,
+            content: ip,
+            proxied: true
+        }, { headers });
+    } else {
+        await axios.post(`https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records`, {
+            type: "A",
+            name: `${slug}.lonch.cloud`,
+            content: ip,
+            proxied: true
+        }, { headers });
+    }
+    await workerLog(deploymentId, `Cloudflare DNS updated successfully. Traffic is now routing!`);
+}
 
 export async function authenticateECR(deploymentId: string) {
     await workerLog(deploymentId, `Authenticating with AWS ECR...`);
@@ -139,7 +226,8 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
 
     await ensureCloudwatchLogGroupExists(project.slug, deploymentId);
 
-    // 1. Create Target Group in ALB
+    // --- SKIPPED TO SAVE COSTS: ALB TARGET GROUP & ROUTING ---
+    /*
     const tgResponse = await albClient.send(new CreateTargetGroupCommand({
         Name: `tg-lonch-${project.slug.substring(0, 16)}`,
         Protocol: "HTTP",
@@ -153,7 +241,6 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
     const targetGroupArn = tgResponse.TargetGroups?.[0]?.TargetGroupArn;
     if (!targetGroupArn) throw new Error("Failed to create ALB Target Group");
 
-    // 2. Create Listener Rule
     const rulePriority = Math.floor(Math.random() * 49999) + 1;
     await albClient.send(new CreateRuleCommand({
         ListenerArn: AWS_ALB_LISTENER_ARN,
@@ -173,6 +260,8 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
             }
         ]
     }));
+    */
+    const targetGroupArn = "placeholder-skipped";
 
     // 3. Register Task Definition
     const taskDefResponse = await ecsClient.send(new RegisterTaskDefinitionCommand({
@@ -252,6 +341,8 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
                 assignPublicIp: AssignPublicIp.ENABLED
             }
         },
+        loadBalancers: [] // SKIPPED ALB
+        /*
         loadBalancers: [
             {
                 targetGroupArn: targetGroupArn,
@@ -259,6 +350,7 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
                 containerPort: appPort
             }
         ]
+        */
     }));
 
     const newServiceArn = createServiceRes.service?.serviceArn;
@@ -271,6 +363,11 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
     });
 
     await workerLog(deploymentId, `Successfully provisioned new ECS Service: ${newServiceArn}`);
+    
+    // Cloudflare Zero-Cost Routing Hack
+    const publicIp = await getTaskPublicIp("lonch-production-cluster", `svc-lonch-${project.slug}`, deploymentId);
+    await updateCloudflareDNS(project.slug, publicIp, deploymentId);
+
     return newServiceArn;
 }
 
@@ -342,6 +439,11 @@ export async function updateExistingEcsService(project: any, imageTag: string, a
             forceNewDeployment: true,
         })
     );
+    
+    // Cloudflare Zero-Cost Routing Hack
+    const serviceName = project.ecsServiceArn.split('/').pop();
+    const publicIp = await getTaskPublicIp("lonch-production-cluster", serviceName, deploymentId);
+    await updateCloudflareDNS(project.slug, publicIp, deploymentId);
 }
 
 export async function waitForEcsService(project: any, deploymentId: string) {
