@@ -15,7 +15,7 @@ The official backend and deployment control plane for Lonch, a high-performance 
 
 ## Why Lonch?
 
-While massive platforms like Vercel or Render exist, Lonch is purpose-built to address the complexities of provisioning isolated AWS resources (ECS, ALB, ECR, S3) dynamically from a centralized control plane. It serves as a comprehensive demonstration of how to build a scalable, multi-tenant PaaS, complete with automated Docker builds, background workers, zero-downtime deployments, and real-time Server-Sent Events (SSE) log streaming.
+While massive platforms like Vercel or Render exist, Lonch is purpose-built to address the complexities of provisioning isolated AWS resources (ECS, ECR, S3) dynamically from a centralized control plane while maintaining a strictly **$0 zero-cost infrastructure baseline**. It serves as a comprehensive demonstration of how to build a scalable, multi-tenant PaaS, complete with automated Docker builds, background workers, zero-downtime deployments, and real-time Server-Sent Events (SSE) log streaming.
 
 ## Architecture & Data Flow
 
@@ -23,16 +23,16 @@ Lonch is designed around a decoupled micro-architecture pattern that separates t
 
 ![Architecture Diagram](assets/diagram/architecture.png)
 
-1. **Authentication & API**: The user authenticates via the Express API (using Github OAuth). Access to deployments, projects, and domains is securely controlled and persisted in PostgreSQL using Prisma.
+1. **Authentication & API**: The user authenticates via the Express API (using Github OAuth). Access to deployments, projects, and domains is securely controlled and persisted in a Serverless PostgreSQL database (Supabase) using Prisma.
 2. **Deployment Pipeline (BullMQ + Redis)**: 
    - Instead of blocking the main thread, when a user triggers a deployment, the API pushes a job to a Redis queue.
    - Background workers (static or backend) pick up the job, securely clone the GitHub repository, and automatically infer the correct language, framework, and build commands (Zero-config deployment).
 3. **Infrastructure Provisioning**:
    - **Static Sites**: The worker builds the site using a temporary Docker container and uploads the compiled assets directly to AWS S3.
-   - **Backend Apps**: The worker builds a Docker image, pushes it to AWS ECR, provisions an ALB Target Group, and registers a new AWS ECS Fargate task definition.
-4. **Dynamic Proxy Routing**:
-   - All incoming traffic to `*.lonch.cloud` hits the custom Lonch Node.js proxy middleware.
-   - The proxy dynamically queries the database and forwards requests to the appropriate S3 bucket (for static sites) or AWS ALB (for backend apps), managing custom domains and HTTPS offloading seamlessly without manually editing Nginx configurations.
+   - **Backend Apps**: The worker builds a Docker image, pushes it to AWS ECR, and registers a new AWS ECS Fargate task definition. Instead of an expensive ALB, it provisions a lightweight `socat` proxy sidecar within the task to dynamically route traffic from port 80 to the user's specific application port.
+4. **Dynamic DNS & Proxy Routing**:
+   - For backend apps, the worker interacts directly with the **Cloudflare API** to dynamically update DNS `A` records to point straight to the newly provisioned AWS Fargate public IP, bypassing the central proxy entirely for maximum speed and zero AWS load balancing costs.
+   - For static sites, incoming traffic to `*.lonch.cloud` hits the custom Lonch Node.js proxy middleware (behind Caddy), which dynamically queries the database and serves the appropriate S3 bucket assets, managing custom domains seamlessly.
 5. **Real-time Log Streaming**: Build logs are broadcast line-by-line via Redis Pub/Sub and pushed directly to the frontend client using Server-Sent Events (SSE) for a seamless Vercel-like experience.
 
 ## Technical Decisions & Tradeoffs
@@ -40,9 +40,12 @@ Lonch is designed around a decoupled micro-architecture pattern that separates t
 - **Background Workers (BullMQ + Redis)**: 
   - *Decision*: Decouple heavy workloads (Docker builds, AWS API calls) from the main request-response lifecycle.
   - *Tradeoff*: Introduces infrastructure overhead (requires Redis), but ensures the control plane API remains fast, highly available, and capable of concurrent deployments without memory leaks.
-- **Dynamic Proxy Middleware**: 
-  - *Decision*: Route all user traffic through a single Node.js proxy to resolve custom domains and route to ALB/S3 dynamically.
-  - *Tradeoff*: Acts as a potential bottleneck if not scaled properly, but allows for infinite flexibility in managing custom subdomains without manually updating DNS records for every user.
+- **Zero-Cost Dynamic DNS Routing vs AWS ALB**:
+  - *Decision*: Completely removed the AWS Application Load Balancer (ALB). Instead, backend deployments dynamically extract the Fargate Task's ephemeral public IP and update Cloudflare DNS via API, utilizing a `socat` sidecar for internal port translation.
+  - *Tradeoff*: Requires Cloudflare as a hard dependency for edge SSL and DNS routing, but eliminates the massive base cost ($20+/mo) and latency overhead of AWS ALBs.
+- **Dynamic Proxy Middleware (For Static Sites)**: 
+  - *Decision*: Route static site traffic through a single Node.js proxy to resolve custom domains and route to S3 dynamically.
+  - *Tradeoff*: Acts as a potential bottleneck if not scaled properly, but allows for infinite flexibility in managing custom subdomains.
 - **Zero-Config Auto-Detector**: 
   - *Decision*: Automatically inspect cloned repositories to infer base Docker images and build commands.
   - *Tradeoff*: Increases worker complexity, but provides a frictionless developer experience where users just link a repository and click "Deploy".
@@ -55,9 +58,9 @@ Lonch is designed around a decoupled micro-architecture pattern that separates t
 - **Runtime**: Node.js / Bun
 - **Language**: TypeScript
 - **Framework**: Express.js
-- **Database**: PostgreSQL (Prisma ORM), Redis
+- **Database**: Supabase / Serverless PostgreSQL (Prisma ORM), Redis
 - **Message Queue**: BullMQ
-- **Infrastructure Integrations**: Docker, AWS SDK (ECR, ECS, ALB, S3, ACM, CloudWatch)
+- **Infrastructure Integrations**: Docker, Cloudflare API, AWS SDK (ECR, ECS, S3, CloudWatch)
 
 ## Run with Docker
 
