@@ -286,6 +286,21 @@ export async function provisionNewEcsService(project: any, imageTag: string, app
                         "awslogs-stream-prefix": "ecs"
                     }
                 }
+            },
+            {
+                name: `socat-proxy`,
+                image: `alpine/socat:latest`,
+                command: [`tcp-listen:80,fork,reuseaddr`, `tcp-connect:127.0.0.1:${appPort}`],
+                portMappings: [{ containerPort: 80, protocol: "tcp" }],
+                essential: true,
+                logConfiguration: {
+                    logDriver: "awslogs",
+                    options: {
+                        "awslogs-group": `/ecs/lonch-${project.slug}`,
+                        "awslogs-region": ecrRegion as string,
+                        "awslogs-stream-prefix": "ecs-socat"
+                    }
+                }
             }
         ]
     }));
@@ -400,7 +415,7 @@ export async function updateExistingEcsService(project: any, imageTag: string, a
         throw new Error("Invalid Task Definition structure returned from AWS.");
     }
 
-    const primaryContainer = taskDef.containerDefinitions[0];
+    const primaryContainer = taskDef.containerDefinitions.find(c => c.name.startsWith("app-")) || taskDef.containerDefinitions[0];
     if (!primaryContainer) {
         throw new Error("No container definitions found in the Task Definition.");
     }
@@ -414,6 +429,30 @@ export async function updateExistingEcsService(project: any, imageTag: string, a
             protocol: "tcp"
         }
     ];
+
+    // Ensure socat proxy is present and updated
+    const socatContainerIndex = taskDef.containerDefinitions.findIndex(c => c.name === "socat-proxy");
+    const socatDef = {
+        name: `socat-proxy`,
+        image: `alpine/socat:latest`,
+        command: [`tcp-listen:80,fork,reuseaddr`, `tcp-connect:127.0.0.1:${appPort}`],
+        portMappings: [{ containerPort: 80, hostPort: 80, protocol: "tcp" }],
+        essential: true,
+        logConfiguration: {
+            logDriver: "awslogs",
+            options: {
+                "awslogs-group": `/ecs/lonch-${project.slug}`,
+                "awslogs-region": ecrRegion as string,
+                "awslogs-stream-prefix": "ecs-socat"
+            }
+        }
+    };
+
+    if (socatContainerIndex > -1) {
+        taskDef.containerDefinitions[socatContainerIndex] = socatDef;
+    } else {
+        taskDef.containerDefinitions.push(socatDef);
+    }
 
     const registerResponse = await ecsClient.send(new RegisterTaskDefinitionCommand({
         family: taskDef.family!,
