@@ -1,19 +1,8 @@
-{
-    on_demand_tls {
-        ask http://app:8080/health
-    }
-}
 
-api.lonch.cloud {
-    tls {
-        on_demand
-    }
+http://api.lonch.cloud {
     reverse_proxy app:8080
 }
 
-*.lonch.cloud {
-    tls {
-        on_demand
-    }
+http://*.lonch.cloud {
     reverse_proxy app:8080
 }
