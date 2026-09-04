@@ -1,8 +1,11 @@
-
 http://api.lonch.cloud {
-    reverse_proxy app:8080
+    reverse_proxy app:8080 {
+        header_up X-Forwarded-Proto https
+    }
 }
 
 http://*.lonch.cloud {
-    reverse_proxy app:8080
+    reverse_proxy app:8080 {
+        header_up X-Forwarded-Proto https
+    }
 }
