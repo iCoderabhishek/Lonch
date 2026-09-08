@@ -39,6 +39,7 @@
     @api_no_origin {
         path /api/v1/*
         not path /api/v1/webhooks/*
+        not path /api/v1/auth/*
         not header_regexp Origin "(?i)lonch\."
         not header_regexp Referer "(?i)lonch\."
     }
