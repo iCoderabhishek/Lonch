@@ -5,6 +5,7 @@
     # real identity in the UA string. Catch them early.
     # =====================================================
     @attack_tools {
+        not method OPTIONS
         not path /api/v1/auth/*
         not path /api/v1/webhooks/*
         header_regexp User-Agent "(?i)(curl|wget|python|httpx|nuclei|zgrab|masscan|nmap|nikto|sqlmap|dirbuster|gobuster|wfuzz|ffuf|burpsuite|acunetix|nessus|qualys|openvas|arachni|w3af|skipfish|wpscan|droopescan|whatweb|wafw00f|xsstrike|commix|semrush|ahref|mj12bot|dotbot|petalbot|baiduspider|yandexbot|sogou|exabot|go-http-client|java|libwww|lwp-trivial|scrapy|mechanize|httpclient|okhttp|axios|node-fetch|undici|got\/|superagent)"
@@ -19,6 +20,7 @@
     # Webhooks & health checks are excluded.
     # =====================================================
     @no_ua {
+        not method OPTIONS
         not path /api/v1/auth/*
         not path /api/v1/webhooks/*
         not path /health*
@@ -27,6 +29,7 @@
     abort @no_ua
 
     @not_real_browser {
+        not method OPTIONS
         not header_regexp User-Agent "^Mozilla/5\.0 \("
         not path /api/v1/auth/*
         not path /api/v1/webhooks/*
@@ -45,6 +48,7 @@
     # Webhooks are excluded (GitHub sets its own headers).
     # =====================================================
     @api_no_origin {
+        not method OPTIONS
         path /api/v1/*
         not path /api/v1/webhooks/*
         not path /api/v1/auth/*
