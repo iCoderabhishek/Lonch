@@ -69,14 +69,14 @@ http:// {
     abort
 }
 
-api.lonch.cloud {
+http://api.lonch.cloud {
     import strict_security
     reverse_proxy app:8080 {
         header_up X-Forwarded-Proto {scheme}
     }
 }
 
-*.lonch.cloud {
+http://*.lonch.cloud {
     import strict_security
     reverse_proxy app:8080 {
         header_up X-Forwarded-Proto {scheme}
