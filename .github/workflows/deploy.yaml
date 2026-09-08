@@ -27,4 +27,4 @@ jobs:
             
             # export PATH="$HOME/.bun/bin:$PATH"
             # bun run docker
-            docker-compose up -d --build
+            docker compose up -d --build
