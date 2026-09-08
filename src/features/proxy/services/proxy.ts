@@ -28,7 +28,7 @@ export const proxyRequest = async (req: Request, res: Response, next: NextFuncti
         });
 
         // Expanded list of common bot scan paths to keep your logs clean
-        const isBotScan = req.path.includes('.env') || req.path.includes('.php') || req.path.includes('.json') || req.path.includes('.axd') || req.path.includes('/actuator') || req.path.includes('/.vscode') || req.path.includes('/.well-known') || /^[\d.]+$/.test(host);
+        const isBotScan = req.path.includes('.env') || req.path.includes('.php') || req.path.includes('.json') || req.path.includes('.axd') || req.path.includes('/actuator') || req.path.includes('/.vscode') || req.path.includes('/.well-known') || req.path.includes('/wp') || req.path.includes('wp-json') || /^[\d.]+$/.test(host);
 
         if (!project) {
             if (!isBotScan) {

@@ -13,7 +13,6 @@ import { proxyInterceptor } from "./features/proxy/middleware";
 import logRoute from "./features/logs/routes";
 import webhookRoute from "./features/deploy/routes/webhooks";
 import { rateLimiter } from "./shared/middleware/rate-limiter";
-import { appKeyGuard } from "./shared/middleware/app-key-guard";
 import "./shared/worker/index"; // Initialize BullMQ workers
 
 const app = express()
@@ -49,8 +48,7 @@ app.use(rateLimiter({
     message: "Too many requests. Please slow down.",
 }));
 
-// App-key guard: blocks requests without the secret header
-app.use(appKeyGuard);
+// App-key guard removed: API is now accessed directly by the browser (secured by CORS and Session)
 
 // feature routes
 app.use("/health", healthRoute)
