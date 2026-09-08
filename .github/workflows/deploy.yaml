@@ -26,5 +26,6 @@ jobs:
             git pull origin ${{ github.ref_name }}
             
             # export PATH="$HOME/.bun/bin:$PATH"
-            # bun run docker
             docker compose up -d --build
+            docker image prune -f
+            docker builder prune -f --reserved-space 500MB
