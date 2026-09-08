@@ -16,7 +16,8 @@ export function appKeyGuard(req: Request, res: Response, next: NextFunction) {
     // Exclude paths that don't come from the browser
     if (
         req.path.startsWith("/api/v1/webhooks") ||
-        req.path.startsWith("/health")
+        req.path.startsWith("/health") ||
+        req.path.startsWith("/api/v1/auth")
     ) {
         return next();
     }
