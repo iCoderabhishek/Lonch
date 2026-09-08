@@ -13,8 +13,9 @@ import type { Request, Response, NextFunction } from "express";
  * Caddy layer — but we double-check here at the app level too.
  */
 export function appKeyGuard(req: Request, res: Response, next: NextFunction) {
-    // Exclude paths that don't come from the browser
+    // Exclude paths that don't come from the browser, and CORS preflight requests
     if (
+        req.method === "OPTIONS" ||
         req.path.startsWith("/api/v1/webhooks") ||
         req.path.startsWith("/health") ||
         req.path.startsWith("/api/v1/auth")
