@@ -12,6 +12,8 @@ import projectRoute from "./projects/routes";
 import { proxyInterceptor } from "./features/proxy/middleware";
 import logRoute from "./features/logs/routes";
 import webhookRoute from "./features/deploy/routes/webhooks";
+import { rateLimiter } from "./shared/middleware/rate-limiter";
+import { appKeyGuard } from "./shared/middleware/app-key-guard";
 import "./shared/worker/index"; // Initialize BullMQ workers
 
 const app = express()
@@ -23,7 +25,7 @@ app.use(cors({
 
 app.use(proxyInterceptor);
 
-app.use(express.json())
+app.use(express.json({ limit: "2mb" }))
 app.set("trust proxy", 1);
 
 app.use(cookieSession({
@@ -39,6 +41,17 @@ app.use(cookieSession({
 
 const PORT = process.env.PORT || 8080
 
+// Global rate limiter: 100 requests per 60s per IP
+app.use(rateLimiter({
+    maxRequests: 100,
+    windowSeconds: 60,
+    keyPrefix: "rl:global",
+    message: "Too many requests. Please slow down.",
+}));
+
+// App-key guard: blocks requests without the secret header
+app.use(appKeyGuard);
+
 // feature routes
 app.use("/health", healthRoute)
 app.use("/api/v1/auth", authRoute)
@@ -47,6 +60,15 @@ app.use("/api/v1/deploy", deployRoute)
 app.use("/api/v1/projects", projectRoute);
 app.use("/api/v1/logs", logRoute);
 app.use("/api/v1/webhooks", webhookRoute)
+
+// Stricter rate limit on auth routes (10 requests per 60s)
+app.use("/api/v1/auth", rateLimiter({
+    maxRequests: 10,
+    windowSeconds: 60,
+    keyPrefix: "rl:auth",
+    message: "Too many auth attempts. Please wait.",
+}));
+
 // libs handler
 app.use(errorHandler)
 

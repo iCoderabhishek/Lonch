@@ -11,8 +11,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/builds:/tmp/builds
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -23,6 +21,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - APP_SECRET_KEY=${APP_SECRET_KEY}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
@@ -30,30 +30,10 @@ services:
     depends_on:
       - app
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: lonch-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: lonch
-    ports:
-      - "5433:5432" # Maps host port 5433 to container port 5432
-    volumes:
-      - lonch_postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d lonch" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis:
     image: redis:8-alpine
     container_name: lonch-redis
     restart: unless-stopped
-    ports:
-      - "6380:6379"
     volumes:
       - lonch_redis:/data
     healthcheck:
@@ -63,7 +43,6 @@ services:
       retries: 5
 
 volumes:
-  lonch_postgres:
   lonch_redis:
   caddy_data:
   caddy_config:
