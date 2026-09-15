@@ -35,7 +35,6 @@ app.use(cookieSession({
     httpOnly: COOKIE_DOMAIN ? true : false,
     sameSite: "lax",
     domain: COOKIE_DOMAIN,
-    secureProxy: COOKIE_DOMAIN ? true : false,
 }))
 
 const PORT = process.env.PORT || 8080
