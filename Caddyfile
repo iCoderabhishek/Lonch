@@ -67,6 +67,13 @@ http:// {
     abort
 }
 
+# =====================================================
+# api.lonch.cloud — DIRECT HTTPS via Let's Encrypt
+# Grey-clouded in Cloudflare (DNS-only), so Caddy
+# handles TLS directly. This avoids Cloudflare Bot
+# Fight Mode blocking CORS preflight requests.
+# Caddy's strict_security layers still protect the API.
+# =====================================================
 http://api.lonch.cloud {
     import strict_security
     reverse_proxy app:8080 {
@@ -74,6 +81,11 @@ http://api.lonch.cloud {
     }
 }
 
+# =====================================================
+# *.lonch.cloud — Cloudflare-proxied user deployments
+# These stay on http:// because Cloudflare terminates
+# TLS at its edge and forwards plain HTTP to origin.
+# =====================================================
 http://*.lonch.cloud {
     import strict_security
     reverse_proxy app:8080 {

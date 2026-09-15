@@ -20,6 +20,31 @@ const generateAppJwt = (): string => {
 }
 
 
+// Asks GitHub directly whether our app is installed on an account, so it works
+// regardless of the user's token type. Returns null when not installed (GitHub 404s).
+export const getInstallationIdForAccount = async (login: string): Promise<string | null> => {
+    const appJwt = generateAppJwt()
+
+    const headers = {
+        Authorization: `Bearer ${appJwt}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "lonch",
+    }
+
+    // a login can be either a user or an org
+    for (const path of [`/users/${login}/installation`, `/orgs/${login}/installation`]) {
+        try {
+            const { data } = await axios.get(`https://api.github.com${path}`, { headers })
+            if (data?.id) return String(data.id)
+        } catch (err: any) {
+            if (err?.response?.status === 404) continue
+            console.error(`[github] ${path} lookup failed:`, err?.response?.data || err?.message)
+        }
+    }
+
+    return null
+}
+
 export const getInstallationToken = async (installationId: string): Promise<string> => {
     const appJwt = generateAppJwt()
 

@@ -69,7 +69,58 @@ export const processAwsEcsWebhook = async (payload: any) => {
     }
 };
 
+// Keeps User.githubInstallationId in sync for installs that happen outside the login
+// flow, e.g. straight from the app's GitHub page, or repo access changed later.
+const processInstallationEvent = async (payload: any) => {
+    const action = payload.action;
+    const installationId = payload.installation?.id;
+    const account = payload.installation?.account;
+
+    if (!installationId || !account) {
+        console.error("[GitHub Webhook] installation event missing installation or account");
+        return;
+    }
+
+    const githubId = String(account.id);
+
+    if (action === "deleted") {
+        await prisma.user.updateMany({
+            where: { githubInstallationId: String(installationId) },
+            data: { githubInstallationId: null }
+        });
+        console.log(`[GitHub Webhook] Cleared installation ${installationId} for ${account.login}`);
+        return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { githubId } });
+    if (!user) {
+        console.log(`[GitHub Webhook] No user row yet for githubId ${githubId} (${account.login}); will be linked at next login`);
+        return;
+    }
+
+    // githubInstallationId is @unique, so detach any stale owner first
+    await prisma.user.updateMany({
+        where: {
+            githubInstallationId: String(installationId),
+            githubId: { not: githubId }
+        },
+        data: { githubInstallationId: null }
+    });
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { githubInstallationId: String(installationId) }
+    });
+
+    console.log(`[GitHub Webhook] Linked installation ${installationId} to ${account.login}`);
+};
+
 export const processGithubWebhook = async (payload: any, eventName: string) => {
+    if (eventName === "installation" || eventName === "installation_repositories") {
+        await processInstallationEvent(payload);
+        return;
+    }
+
     if (eventName !== "push") {
         console.log(`[GitHub Webhook] Ignoring event type: ${eventName}`);
         return;
