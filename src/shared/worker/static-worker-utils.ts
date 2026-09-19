@@ -14,6 +14,7 @@ import { workerLog } from "./logger";
 import { getInstallationToken } from "../libs/github";
 
 const execFileAsync = promisify(execFile);
+export const BUILD_ROOT = "/tmp/builds";
 
 export const getProjectForDeploy = async (projectId: string, expectedType: string) => {
     const project = await prisma.project.findUnique({
@@ -34,7 +35,7 @@ export const getProjectForDeploy = async (projectId: string, expectedType: strin
 };
 
 export const cloneRepository = async (project: any, deploymentId: string) => {
-    const tempDir = path.resolve("/tmp/builds", deploymentId);
+    const tempDir = path.resolve(BUILD_ROOT, deploymentId);
     const branch = project.branch || "main";
 
     // Ensure clean state before cloning

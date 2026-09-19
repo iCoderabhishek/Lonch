@@ -29,3 +29,7 @@ export const AWS_ALB_DNS_NAME = process.env.AWS_ALB_DNS_NAME as string
 
 export const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN as string
 export const CLOUDFLARE_ZONE_ID = process.env.CLOUDFLARE_ZONE_ID as string
+
+export const MIN_FREE_DISK_MB = Number(process.env.MIN_FREE_DISK_MB) || 6144
+export const BUILD_CACHE_KEEP_MB = Number(process.env.BUILD_CACHE_KEEP_MB) || 4096
+export const DOCKER_BUILD_NO_CACHE = process.env.DOCKER_BUILD_NO_CACHE === "true"

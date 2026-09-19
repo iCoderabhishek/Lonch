@@ -9,10 +9,12 @@ import {
     streamLogsToRedisAndDB,
     waitForContainerSuccess,
     uploadStaticAssetsToS3,
-    cleanupResources
+    cleanupResources,
+    BUILD_ROOT
 } from "./static-worker-utils";
 import { autoDetectConfig } from "./project-detector";
 import { workerLog } from "./logger";
+import { ensureDiskSpaceForBuild, reclaimDockerDisk } from "./disk-utils";
 
 export const staticDeployWorker = new Worker(
     "static-build",
@@ -26,6 +28,9 @@ export const staticDeployWorker = new Worker(
             await updateDeploymentStatus(deploymentId, "BUILDING");
 
             let project = await getProjectForDeploy(projectId, "STATIC");
+
+            // 0. Fail fast if the host cannot fit this build
+            await ensureDiskSpaceForBuild(deploymentId, BUILD_ROOT);
 
             // 1. Clone Repo
             tempDir = await cloneRepository(project, deploymentId);
@@ -58,10 +63,13 @@ export const staticDeployWorker = new Worker(
 
         } catch (error: any) {
             console.error(`[Worker Error]:`, error);
+            // Surface the reason in the deployment log, otherwise the user just sees "FAILED".
+            await workerLog(deploymentId, `Deployment failed: ${error?.message || error}`, "stderr").catch(console.error);
             await updateDeploymentStatus(deploymentId, "FAILED").catch(console.error);
             throw error;
         } finally {
             await cleanupResources(tempDir, container);
+            await reclaimDockerDisk(deploymentId, "routine").catch(console.error);
         }
     },
     { connection: { url: REDIS_URL } }

@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
-import { AWS_ECR_REPOSITORY_URI, REDIS_URL } from "../libs/env-lib";
-import { cloneRepository, getProjectForDeploy, runCommandWithStreaming } from "./static-worker-utils";
+import { AWS_ECR_REPOSITORY_URI, DOCKER_BUILD_NO_CACHE, REDIS_URL } from "../libs/env-lib";
+import { BUILD_ROOT, cloneRepository, getProjectForDeploy, runCommandWithStreaming } from "./static-worker-utils";
 import Docker from "dockerode";
 import { updateDeploymentStatus } from "../services/deploy-service";
 import { promisify } from "util";
@@ -10,6 +10,7 @@ import path from "path";
 import { authenticateECR, ensureEcrRepositoryExists, provisionNewEcsService, updateExistingEcsService, waitForEcsService } from "./aws-backend-utils";
 import { autoDetectConfig } from "./project-detector";
 import { workerLog } from "./logger";
+import { ensureDiskSpaceForBuild, reclaimDockerDisk } from "./disk-utils";
 
 const execFileAsync = promisify(execFile);
 
@@ -22,6 +23,9 @@ export const backendDeployWorker = new Worker(
         try {
             await updateDeploymentStatus(deploymentId, "BUILDING");
             let project = await getProjectForDeploy(projectId, "BACKEND");
+
+            // 0. fail fast if the host cannot fit this build
+            await ensureDiskSpaceForBuild(deploymentId, BUILD_ROOT);
 
             // 1. clone the repo
 
@@ -48,10 +52,14 @@ export const backendDeployWorker = new Worker(
             }
             const imageTag = `${AWS_ECR_REPOSITORY_URI}:${deploymentId}`;
 
-            await workerLog(deploymentId, `Building Docker image...`);
-            await runCommandWithStreaming('docker', [
-                "build", "-t", imageTag, "--no-cache", tempDir,
-            ], deploymentId, tempDir);
+            // Layer cache keys are content-addressed, so cached builds are still correct and
+            // save both build minutes and the disk a full rebuild would write.
+            const buildArgs = ["build", "-t", imageTag];
+            if (DOCKER_BUILD_NO_CACHE) buildArgs.push("--no-cache");
+            buildArgs.push(tempDir);
+
+            await workerLog(deploymentId, `Building Docker image${DOCKER_BUILD_NO_CACHE ? " (cache disabled)" : ""}...`);
+            await runCommandWithStreaming('docker', buildArgs, deploymentId, tempDir);
             await workerLog(deploymentId, `Image built successfully: ${imageTag}`);
 
             // 3. push image to ECR
@@ -96,6 +104,8 @@ export const backendDeployWorker = new Worker(
 
         } catch (error: any) {
             console.error(`[Worker Error]:`, error);
+            // Surface the reason in the deployment log, otherwise the user just sees "FAILED".
+            await workerLog(deploymentId, `Deployment failed: ${error?.message || error}`, "stderr").catch(console.error);
             await updateDeploymentStatus(deploymentId, "FAILED").catch(console.error);
         } finally {
             if (tempDir) {
@@ -103,6 +113,8 @@ export const backendDeployWorker = new Worker(
             }
             const imageTag = `${AWS_ECR_REPOSITORY_URI}:${deploymentId}`;
             await execFileAsync('docker', ['rmi', imageTag]).catch(() => { });
+            // The image is in ECR by now; reclaim the layers and build cache it left behind.
+            await reclaimDockerDisk(deploymentId, "routine").catch(console.error);
         }
     },
     { connection: { url: REDIS_URL } }
